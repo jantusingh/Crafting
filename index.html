@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Calcolatore Crafting</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f1320">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crafting">
+<style>
+  :root{
+    --bg:#0f1320;
+    --bg2:#161c2e;
+    --card:#1b2238;
+    --card2:#222b45;
+    --line:#2c3656;
+    --txt:#e8ecf6;
+    --muted:#97a1c0;
+    --accent:#5b8cff;
+    --accent2:#3a6bff;
+    --green:#39d98a;
+    --gold:#ffc64b;
+    --t1:#7fd1ff;
+    --t2:#ffc64b;
+    --t3:#c89bff;
+    --danger:#ff6b6b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 600px at 70% -10%, #1d2742 0%, var(--bg) 60%);
+    color:var(--txt);
+    min-height:100vh;
+  }
+  header{
+    padding:22px 28px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:14px;
+    background:rgba(15,19,32,.6);
+    backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:20;
+  }
+  header .logo{
+    width:42px;height:42px;border-radius:12px;
+    background:linear-gradient(135deg,var(--accent),#9b6bff);
+    display:flex;align-items:center;justify-content:center;font-size:22px;
+    box-shadow:0 6px 20px rgba(91,140,255,.35);
+  }
+  header h1{font-size:20px;margin:0}
+  header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px 20px 80px}
+  .tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+  .tab{
+    padding:11px 20px;border-radius:10px;cursor:pointer;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-weight:600;font-size:15px;transition:.15s;
+  }
+  .tab:hover{color:var(--txt)}
+  .tab.active{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;border-color:transparent}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;margin-bottom:20px;
+  }
+  .card h2{margin:0 0 4px;font-size:18px}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px;font-weight:600}
+  input,select{
+    width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--bg2);color:var(--txt);font-size:15px;outline:none;transition:.15s;
+  }
+  input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,140,255,.18)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+  .btn{
+    padding:11px 18px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:15px;
+    background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;transition:.15s;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn.secondary{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn.danger{background:transparent;color:var(--danger);border:1px solid rgba(255,107,107,.4);padding:7px 12px;font-size:13px}
+  .btn.small{padding:7px 12px;font-size:13px}
+  .badge{
+    display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.5px;
+  }
+  .b1{background:rgba(127,209,255,.15);color:var(--t1)}
+  .b2{background:rgba(255,198,75,.15);color:var(--t2)}
+  .b3{background:rgba(200,155,255,.15);color:var(--t3)}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .ing-row{display:flex;gap:10px;margin-bottom:10px;align-items:center}
+  .ing-row select{flex:3}
+  .ing-row input{flex:1;min-width:80px}
+  .empty{color:var(--muted);text-align:center;padding:30px;font-style:italic}
+  .item-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .item{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .item .top{display:flex;justify-content:space-between;align-items:start;gap:8px}
+  .item .name{font-weight:700;font-size:15px}
+  .item .recipe{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
+  .item .acts{display:flex;gap:6px;margin-top:12px}
+  .order-btns{display:flex;gap:4px;flex:0 0 auto}
+  .order-btns .btn{padding:4px 9px;font-size:13px;line-height:1}
+  .btn:disabled{opacity:.3;cursor:not-allowed}
+  .group-title{display:flex;align-items:center;gap:10px;margin:24px 0 12px;font-size:15px;font-weight:700}
+  .result-total{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .result-total .n{font-size:30px;font-weight:800;color:var(--green)}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--card2);border:1px solid var(--line);padding:13px 22px;border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;transition:.25s;pointer-events:none;z-index:50;font-weight:600;
+  }
+  .toast.show{opacity:1;bottom:34px}
+  .hint{background:rgba(91,140,255,.08);border:1px solid rgba(91,140,255,.25);border-radius:10px;padding:12px 14px;font-size:13px;color:#bcccff;margin-bottom:16px;line-height:1.5}
+  .hidden{display:none}
+  .tree{font-size:14px;line-height:1.7}
+  .tree .node{padding-left:22px;border-left:1px dashed var(--line);margin-left:6px}
+  .tree .leaf-min{color:var(--t1)}
+  .mini-tag{font-size:11px;color:var(--muted)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .check-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+  .check-head b{color:var(--green);font-size:15px}
+  .progress-bar{height:8px;border-radius:6px;background:var(--bg2);overflow:hidden;margin-bottom:16px;border:1px solid var(--line)}
+  .progress-bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),#2bb673);transition:width .25s}
+  .check-item{margin-bottom:9px;border:1px solid rgba(255,107,107,.45);background:rgba(255,107,107,.09);border-radius:11px;transition:.15s}
+  .check-item.done{border-color:rgba(57,217,138,.55);background:rgba(57,217,138,.12)}
+  .check-row{display:flex;align-items:center;gap:14px;padding:13px 15px;cursor:pointer}
+  .check-row:hover{filter:brightness(1.12)}
+  .check-row .box{
+    width:24px;height:24px;border-radius:7px;border:2px solid var(--danger);flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:transparent;cursor:pointer;
+  }
+  .check-row .q{font-weight:800;font-variant-numeric:tabular-nums;min-width:64px;color:var(--gold)}
+  .check-row .label{flex:1}
+  .check-row .verb{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-right:6px}
+  .check-row .caret{flex:0 0 auto;color:var(--muted);transition:transform .2s;font-size:13px}
+  .check-item.open .caret{transform:rotate(180deg)}
+  .check-item.done .box{border-color:var(--green);background:var(--green);color:#04210f}
+  .check-item.done .q{color:var(--green)}
+  .check-item.done .label{text-decoration:line-through;opacity:.55}
+  .usage{display:none;padding:4px 16px 12px 53px;font-size:13px;color:var(--muted)}
+  .check-item.open .usage{display:block}
+  .usage-row{padding:7px 0;border-top:1px dashed var(--line);line-height:1.5}
+  .usage-row b{color:var(--txt)}
+  .usage-empty{padding:7px 0;border-top:1px dashed var(--line);font-style:italic}
+  .inv-bar{display:flex;align-items:center;gap:10px;padding:0 16px 12px 53px;flex-wrap:wrap}
+  .inv-lbl{font-size:12px;color:var(--muted);font-weight:700}
+  .inv-input{width:120px;padding:7px 10px;font-size:14px}
+  .inv-note{font-size:12px;color:var(--gold)}
+  .inv-note b{color:var(--green)}
+  .inv-note.covered{color:var(--green)}
+  .check-item.covered{opacity:.75;border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.07)}
+  .check-item.covered .q{color:var(--green)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚒️</div>
+  <div>
+    <h1>Calcolatore Crafting</h1>
+    <p>Dimmi cosa vuoi produrre e quanto: calcolo tutto il necessario</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="calc">🧮 Calcola</div>
+    <div class="tab" data-tab="items">📦 Oggetti &amp; Ricette</div>
+  </div>
+
+  <!-- ============ TAB CALCOLA ============ -->
+  <section id="tab-calc">
+    <div class="card">
+      <h2>Cosa vuoi produrre?</h2>
+      <div class="sub">Scegli il prodotto finale e la quantità, poi premi Calcola.</div>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:3">
+          <label>Prodotto</label>
+          <select id="calc-item"></select>
+        </div>
+        <div style="flex:1">
+          <label>Quantità</label>
+          <input id="calc-qty" type="number" min="1" value="1">
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:8px">
+          <button class="btn" id="btn-calc">Calcola</button>
+          <button class="btn secondary" id="btn-newcraft" title="Azzera selezione, quantità, spunte e magazzino">🔄 Nuovo craft</button>
+        </div>
+      </div>
+      <div class="sub" style="margin:10px 0 0">Tutto ciò che inserisci (prodotto, quantità, magazzino e spunte) viene salvato automaticamente: riaprendo il programma ritrovi il craft in corso.</div>
+    </div>
+
+    <div id="calc-results"></div>
+  </section>
+
+  <!-- ============ TAB OGGETTI ============ -->
+  <section id="tab-items" class="hidden">
+    <div class="card">
+      <h2 id="form-title">Aggiungi un oggetto</h2>
+      <div class="sub">Minerali (Fascia 1) = niente ricetta. Lingotti (Fascia 2) e Craft (Fascia 3) = aggiungi gli ingredienti.</div>
+      <div class="hint">
+        <b>Come funziona:</b> Fascia 1 = minerali grezzi (estratti). Fascia 2 = lingotti (da minerali / lingotti). Fascia 3 = craft (da minerali / lingotti / altri craft). Un ingrediente può essere qualsiasi oggetto già creato.
+      </div>
+      <div class="row">
+        <div style="flex:2">
+          <label>Nome oggetto</label>
+          <input id="it-name" placeholder="Es. Lingotto di Ferro">
+        </div>
+        <div style="flex:1">
+          <label>Fascia</label>
+          <select id="it-tier">
+            <option value="1">Fascia 1 — Minerale</option>
+            <option value="2">Fascia 2 — Lingotto</option>
+            <option value="3">Fascia 3 — Craft</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="ing-section" style="margin-top:16px">
+        <label>Ingredienti necessari (per fare 1 pezzo)</label>
+        <div id="ing-list"></div>
+        <button class="btn secondary small" id="btn-add-ing" type="button">+ Aggiungi ingrediente</button>
+      </div>
+
+      <div style="margin-top:18px;display:flex;gap:10px">
+        <button class="btn" id="btn-save-item">Salva oggetto</button>
+        <button class="btn ghost hidden" id="btn-cancel-edit">Annulla modifica</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar" style="justify-content:space-between">
+        <h2 style="margin:0">I tuoi oggetti</h2>
+        <div class="toolbar">
+          <button class="btn secondary small" id="btn-example">Carica esempio</button>
+          <button class="btn ghost small" id="btn-export" title="Salva tutto in un file: prodotti, ricette, magazzino e craft in corso">Esporta (backup)</button>
+          <button class="btn ghost small" id="btn-import" title="Carica un file salvato: ripristina prodotti, magazzino e craft in corso">Importa (ripristina)</button>
+          <button class="btn danger small" id="btn-clear">Svuota tutto</button>
+        </div>
+      </div>
+      <div id="items-container"></div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept=".json" class="hidden">
+
+<script>
+/* ====================== DATI ====================== */
+let DB = { items: [], owned: {}, calc:{rootId:null,qty:1}, done:{}, open:{} };
+// items: ricette ; owned: magazzino {id:qtà} ; calc: craft corrente ; done/open: stato spunte e tendine
+let editingId = null;
+const STORE_KEY = "crafting_calc_db_v1";
+
+function uid(){ return "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* formatta numeri: 1000=1k, 1120=1,12k, 1320600=1,33m, poi B e T. Arrotonda in eccesso a max 2 decimali. */
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)) return n;
+  const abs=Math.abs(n);
+  let div,suf;
+  if(abs>=1e12){div=1e12;suf="T";}
+  else if(abs>=1e9){div=1e9;suf="B";}
+  else if(abs>=1e6){div=1e6;suf="m";}
+  else if(abs>=1e3){div=1e3;suf="k";}
+  else return String(n);
+  const v=Math.ceil(n*100/div)/100;              // in eccesso, max 2 decimali (n*100 intero evita errori di virgola mobile)
+  const s=v.toFixed(2).replace(/0+$/,"").replace(/\.$/,"");
+  return s.replace(".",",")+suf;
+}
+
+/* ordine di produzione: prima le foglie (minerali), poi su fino al prodotto finale */
+function productionOrder(needed){
+  const visited={}, order=[];
+  function visit(id){
+    if(visited[id]) return;
+    visited[id]=true;
+    const it=getItem(id);
+    if(it && it.tier>1 && it.ingredients){
+      it.ingredients.forEach(g=>{ if(needed[g.id]!==undefined) visit(g.id); });
+    }
+    order.push(id);
+  }
+  Object.keys(needed)
+    .sort((a,b)=>{const A=getItem(a),B=getItem(b);return A.tier-B.tier||idx(a)-idx(b);})
+    .forEach(visit);
+  return order;
+}
+
+/* dove viene usato un prodotto e quanta quantità in ciascun utilizzo */
+function usagesOf(id, needed){
+  const res=[];
+  DB.items.forEach(p=>{
+    if(!needed[p.id] || p.tier<=1 || !p.ingredients) return;
+    const ing=p.ingredients.find(g=>g.id===id);
+    if(ing) res.push({parent:p, perUnit:ing.qty, total:ing.qty*needed[p.id]});
+  });
+  res.sort((a,b)=>a.parent.tier-b.parent.tier||idx(a.parent.id)-idx(b.parent.id));
+  return res;
+}
+
+let doneSet={}, openSet={};   // riferimenti a DB.done / DB.open (impostati in load)
+function toggleDone(box, ev){
+  if(ev) ev.stopPropagation();
+  const item=box.closest(".check-item"), id=item.dataset.id;
+  item.classList.toggle("done");
+  if(item.classList.contains("done")) doneSet[id]=true; else delete doneSet[id];
+  save(); updateProgress();
+}
+function toggleExpand(row){
+  const item=row.closest(".check-item"), id=item.dataset.id;
+  item.classList.toggle("open");
+  if(item.classList.contains("open")) openSet[id]=true; else delete openSet[id];
+  save();
+}
+function resetChecks(){
+  Object.keys(doneSet).forEach(k=>delete doneSet[k]);
+  save();
+  document.querySelectorAll("#check-list .check-item.done").forEach(r=>r.classList.remove("done"));
+  updateProgress();
+}
+function newCraft(){
+  if(!confirm("Iniziare un nuovo craft? Verranno azzerati prodotto, quantità, spunte e magazzino.")) return;
+  DB.calc={rootId:null,qty:1};
+  Object.keys(DB.owned).forEach(k=>delete DB.owned[k]);
+  Object.keys(doneSet).forEach(k=>delete doneSet[k]);
+  Object.keys(openSet).forEach(k=>delete openSet[k]);
+  save();
+  document.getElementById("calc-qty").value=1;
+  refreshCalcSelect();
+  document.getElementById("calc-results").innerHTML='<div class="card"><div class="empty">Scegli un prodotto e premi Calcola per iniziare un nuovo craft.</div></div>';
+  toast("Nuovo craft");
+}
+function setOwned(id, val){
+  const n=Math.max(0, parseInt(val)||0);
+  if(!DB.owned) DB.owned={};
+  if(n>0) DB.owned[id]=n; else delete DB.owned[id];
+  save();
+  renderCalc(true);
+}
+function resetOwned(){
+  DB.owned={}; save(); renderCalc(true); toast("Magazzino azzerato");
+}
+function updateProgress(){
+  const rows=document.querySelectorAll("#check-list .check-item");
+  const done=document.querySelectorAll("#check-list .check-item.done").length;
+  const lbl=document.getElementById("check-progress");
+  const bar=document.getElementById("progress-fill");
+  if(lbl) lbl.textContent=`${done} / ${rows.length} completati`;
+  if(bar) bar.style.width=(rows.length? (done/rows.length*100):0)+"%";
+}
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem(STORE_KEY)); if(d&&d.items) DB=d; }catch(e){}
+  if(!DB.owned) DB.owned={};
+  if(!DB.calc) DB.calc={rootId:null,qty:1};
+  if(!DB.done) DB.done={};
+  if(!DB.open) DB.open={};
+  doneSet=DB.done; openSet=DB.open;     // riferimenti diretti allo stato salvato
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+function getItem(id){ return DB.items.find(i=>i.id===id); }
+function idx(id){ return DB.items.findIndex(i=>i.id===id); }   // ordine di inserimento = ordine di difficoltà
+function tierName(t){ return t==1?"Minerale":t==2?"Lingotto":"Craft"; }
+function tierBadge(t){ return `<span class="badge b${t}">F${t} · ${tierName(t)}</span>`; }
+
+/* ====================== TOAST ====================== */
+let toastT;
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2200);
+}
+
+/* ====================== TABS ====================== */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    const tab=t.dataset.tab;
+    document.getElementById("tab-calc").classList.toggle("hidden", tab!=="calc");
+    document.getElementById("tab-items").classList.toggle("hidden", tab!=="items");
+    if(tab==="calc") refreshCalcSelect();
+  };
+});
+
+/* ====================== FORM OGGETTI ====================== */
+const tierSel=document.getElementById("it-tier");
+tierSel.onchange=()=>{
+  document.getElementById("ing-section").style.display = tierSel.value==="1" ? "none" : "block";
+};
+
+function ingOptionsHtml(selectedId){
+  // ingredienti = qualsiasi oggetto tranne quello che stiamo modificando
+  let opts='<option value="">— scegli —</option>';
+  const sorted=[...DB.items].sort((a,b)=>a.tier-b.tier||idx(a.id)-idx(b.id));
+  sorted.forEach(it=>{
+    if(editingId && it.id===editingId) return;
+    const sel = it.id===selectedId ? "selected":"";
+    opts+=`<option value="${it.id}" ${sel}>F${it.tier} · ${it.name}</option>`;
+  });
+  return opts;
+}
+
+function addIngRow(id="", qty=1){
+  const div=document.createElement("div");
+  div.className="ing-row";
+  div.innerHTML=`
+    <select class="ing-item">${ingOptionsHtml(id)}</select>
+    <input class="ing-qty" type="number" min="1" value="${qty}" placeholder="qtà">
+    <button class="btn danger small" type="button">✕</button>`;
+  div.querySelector("button").onclick=()=>div.remove();
+  document.getElementById("ing-list").appendChild(div);
+}
+document.getElementById("btn-add-ing").onclick=()=>addIngRow();
+
+function resetForm(){
+  editingId=null;
+  document.getElementById("it-name").value="";
+  tierSel.value="1";
+  document.getElementById("ing-list").innerHTML="";
+  document.getElementById("ing-section").style.display="none";
+  document.getElementById("form-title").textContent="Aggiungi un oggetto";
+  document.getElementById("btn-cancel-edit").classList.add("hidden");
+}
+document.getElementById("btn-cancel-edit").onclick=resetForm;
+
+document.getElementById("btn-save-item").onclick=()=>{
+  const name=document.getElementById("it-name").value.trim();
+  const tier=parseInt(tierSel.value);
+  if(!name){ toast("Inserisci un nome"); return; }
+
+  // controllo nome duplicato
+  const dup=DB.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && i.id!==editingId);
+  if(dup){ toast("Esiste già un oggetto con questo nome"); return; }
+
+  let ingredients=[];
+  if(tier>1){
+    const rows=document.querySelectorAll("#ing-list .ing-row");
+    for(const r of rows){
+      const iid=r.querySelector(".ing-item").value;
+      const q=parseInt(r.querySelector(".ing-qty").value)||0;
+      if(iid && q>0){
+        const ex=ingredients.find(x=>x.id===iid);
+        if(ex) ex.qty+=q; else ingredients.push({id:iid, qty:q});
+      }
+    }
+    if(ingredients.length===0){ toast("Aggiungi almeno un ingrediente"); return; }
+  }
+
+  if(editingId){
+    const it=getItem(editingId);
+    it.name=name; it.tier=tier; it.ingredients=ingredients;
+    toast("Oggetto aggiornato");
+  }else{
+    DB.items.push({id:uid(), name, tier, ingredients});
+    toast("Oggetto salvato");
+  }
+  save(); resetForm(); renderItems();
+};
+
+function moveItem(id, dir){           // dir = -1 (su) / +1 (giù), entro la stessa fascia
+  const it=getItem(id); if(!it) return;
+  const sameTier=DB.items.filter(i=>i.tier===it.tier);
+  const pos=sameTier.findIndex(i=>i.id===id);
+  const target=sameTier[pos+dir];
+  if(!target) return;                // già in cima/in fondo alla fascia
+  const ai=DB.items.findIndex(i=>i.id===id);
+  const bi=DB.items.findIndex(i=>i.id===target.id);
+  [DB.items[ai],DB.items[bi]]=[DB.items[bi],DB.items[ai]];
+  save(); renderItems(); refreshCalcSelect();
+}
+
+function editItem(id){
+  const it=getItem(id); if(!it) return;
+  editingId=id;
+  document.getElementById("form-title").textContent="Modifica oggetto";
+  document.getElementById("btn-cancel-edit").classList.remove("hidden");
+  document.getElementById("it-name").value=it.name;
+  tierSel.value=it.tier;
+  document.getElementById("ing-section").style.display = it.tier===1?"none":"block";
+  document.getElementById("ing-list").innerHTML="";
+  (it.ingredients||[]).forEach(ing=>addIngRow(ing.id, ing.qty));
+  document.querySelector('.tab[data-tab="items"]').click();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function deleteItem(id){
+  // controlla se usato da altri
+  const used=DB.items.filter(i=>(i.ingredients||[]).some(g=>g.id===id));
+  let msg="Eliminare questo oggetto?";
+  if(used.length) msg=`Attenzione: è usato in ${used.length} ricetta/e (${used.map(u=>u.name).join(", ")}). Eliminare comunque?`;
+  if(!confirm(msg)) return;
+  DB.items=DB.items.filter(i=>i.id!==id);
+  // rimuovi riferimenti
+  DB.items.forEach(i=>{ if(i.ingredients) i.ingredients=i.ingredients.filter(g=>g.id!==id); });
+  if(DB.owned) delete DB.owned[id];
+  save(); renderItems();
+  if(editingId===id) resetForm();
+  toast("Oggetto eliminato");
+}
+
+/* ====================== RENDER OGGETTI ====================== */
+function recipeText(it){
+  if(it.tier===1) return "Materia prima (estratta dalle miniere)";
+  if(!it.ingredients||!it.ingredients.length) return "— nessun ingrediente —";
+  return it.ingredients.map(g=>{
+    const o=getItem(g.id);
+    return `${fmt(g.qty)}× ${o?o.name:"???"}`;
+  }).join("  +  ");
+}
+
+function renderItems(){
+  const c=document.getElementById("items-container");
+  if(!DB.items.length){
+    c.innerHTML='<div class="empty">Nessun oggetto ancora. Aggiungine uno qui sopra, o premi "Carica esempio".</div>';
+    return;
+  }
+  let html="";
+  [1,2,3].forEach(t=>{
+    const list=DB.items.filter(i=>i.tier===t).sort((a,b)=>idx(a.id)-idx(b.id));
+    if(!list.length) return;
+    html+=`<div class="group-title">${tierBadge(t)} <span>${list.length} oggetto/i</span></div>`;
+    html+='<div class="item-list">';
+    list.forEach((it,i)=>{
+      html+=`<div class="item">
+        <div class="top">
+          <span class="name">${it.name}</span>
+          <div class="order-btns">
+            <button class="btn ghost small" onclick="moveItem('${it.id}',-1)" ${i===0?'disabled':''} title="Sposta su (più facile)">▲</button>
+            <button class="btn ghost small" onclick="moveItem('${it.id}',1)" ${i===list.length-1?'disabled':''} title="Sposta giù (più difficile)">▼</button>
+          </div>
+        </div>
+        <div class="recipe">${recipeText(it)}</div>
+        <div class="acts">
+          <button class="btn secondary small" onclick="editItem('${it.id}')">Modifica</button>
+          <button class="btn danger small" onclick="deleteItem('${it.id}')">Elimina</button>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  c.innerHTML=html;
+}
+
+/* ====================== MOTORE DI CALCOLO ====================== */
+/* Calcola tenendo conto del magazzino (owned): il fabbisogno netto di ogni
+   prodotto = richiesto - posseduto, e questo scala a cascata sui materiali. */
+function calculate(rootId, qty, owned){
+  owned = owned || {};
+  // 1) ordine topologico: prima i consumatori, poi gli ingredienti
+  const post=[], state={}, cyclic={};
+  function dfs(id){
+    if(state[id]===2) return;
+    if(state[id]===1){ cyclic[id]=true; return; }   // ciclo: stop
+    state[id]=1;
+    const it=getItem(id);
+    if(it && it.tier>1 && it.ingredients){
+      it.ingredients.forEach(g=>{ if(getItem(g.id)) dfs(g.id); });
+    }
+    state[id]=2; post.push(id);
+  }
+  dfs(rootId);
+  const topo=post.slice().reverse();   // consumatori prima degli ingredienti
+
+  // 2) accumula il fabbisogno e scala il magazzino
+  const requirement={}, production={};
+  requirement[rootId]=qty;
+  topo.forEach(id=>{
+    const req=requirement[id]||0;
+    const have=Math.max(0, owned[id]||0);
+    const net=Math.max(0, req-have);                 // quanto serve DAVVERO
+    production[id]=net;
+    const it=getItem(id);
+    if(net>0 && it && it.tier>1 && it.ingredients && !cyclic[id]){
+      it.ingredients.forEach(g=>{
+        if(getItem(g.id)) requirement[g.id]=(requirement[g.id]||0)+net*g.qty;
+      });
+    }
+  });
+
+  // 3) separa minerali grezzi (raw) e passaggi intermedi (steps), valori NETTI
+  const raw={}, steps={};
+  topo.forEach(id=>{
+    if((requirement[id]||0)<=0 && id!==rootId) return;
+    const it=getItem(id); if(!it) return;
+    if(it.tier===1 || !it.ingredients || !it.ingredients.length) raw[id]=production[id]||0;
+    else steps[id]=production[id]||0;
+  });
+
+  return {raw, steps, requirement, production, cyclic};
+}
+
+/* albero strutturale della ricetta (lordo, non considera il magazzino) */
+function buildTree(rootId, qty){
+  function rec(id, amount, stack){
+    const it=getItem(id); if(!it) return null;
+    const node={id, name:it.name, tier:it.tier, qty:amount, children:[]};
+    if(it.tier===1 || !it.ingredients || !it.ingredients.length) return node;
+    if(stack.includes(id)){ node.cycle=true; return node; }
+    it.ingredients.forEach(g=>{ const c=rec(g.id, g.qty*amount, [...stack,id]); if(c) node.children.push(c); });
+    return node;
+  }
+  return rec(rootId, qty, []);
+}
+
+function refreshCalcSelect(){
+  const sel=document.getElementById("calc-item");
+  const prev=sel.value;
+  const sorted=[...DB.items].sort((a,b)=>a.tier-b.tier||idx(a.id)-idx(b.id));
+  sel.innerHTML = sorted.length
+    ? sorted.map(i=>`<option value="${i.id}">F${i.tier} · ${i.name}</option>`).join("")
+    : '<option value="">(nessun oggetto: creane prima)</option>';
+  if(prev && getItem(prev)) sel.value=prev;
+}
+
+document.getElementById("btn-calc").onclick=()=>{
+  const id=document.getElementById("calc-item").value;
+  const qty=parseInt(document.getElementById("calc-qty").value)||0;
+  const out=document.getElementById("calc-results");
+  if(!id){ out.innerHTML='<div class="card"><div class="empty">Crea prima qualche oggetto nella scheda "Oggetti & Ricette".</div></div>'; return; }
+  if(qty<1){ toast("Quantità non valida"); return; }
+  DB.calc={rootId:id, qty};
+  Object.keys(doneSet).forEach(k=>delete doneSet[k]);   // nuovo calcolo: riparti pulito
+  Object.keys(openSet).forEach(k=>delete openSet[k]);
+  save();
+  renderCalc(false);
+};
+
+function renderCalc(preserve){
+  const out=document.getElementById("calc-results");
+  const id=DB.calc.rootId, qty=DB.calc.qty;
+  if(!id) return;
+  const it=getItem(id);
+  if(!it){ out.innerHTML=""; return; }
+
+  const owned=DB.owned||{};
+  const {raw, steps, requirement, production}=calculate(id, qty, owned);
+  const tree=buildTree(id, qty);
+
+  // --- minerali grezzi (netti) ---
+  let rawHtml='<div class="empty">Nessun minerale grezzo da raccogliere.</div>';
+  const rawEntries=Object.entries(raw).filter(([,q])=>q>0).sort((a,b)=>{const A=getItem(a[0]),B=getItem(b[0]);return A.tier-B.tier||idx(a[0])-idx(b[0]);});
+  if(rawEntries.length){
+    rawHtml='<table><thead><tr><th>Minerale (Fascia 1)</th><th class="num">Quantità</th></tr></thead><tbody>';
+    rawEntries.forEach(([iid,q])=>{ rawHtml+=`<tr><td>${getItem(iid).name}</td><td class="num"><b>${fmt(q)}</b></td></tr>`; });
+    rawHtml+='</tbody></table>';
+  }
+
+  // --- passaggi intermedi (netti) ---
+  let stepHtml='<div class="empty">Nessun passaggio intermedio.</div>';
+  const stepEntries=Object.entries(steps).filter(([iid,q])=>iid!==id && q>0)
+    .sort((a,b)=>{const A=getItem(a[0]),B=getItem(b[0]);return A.tier-B.tier||idx(a[0])-idx(b[0]);});
+  if(stepEntries.length){
+    stepHtml='<table><thead><tr><th>Da produrre</th><th>Fascia</th><th class="num">Quantità</th></tr></thead><tbody>';
+    stepEntries.forEach(([iid,q])=>{
+      const o=getItem(iid);
+      stepHtml+=`<tr><td>${o.name}</td><td>${tierBadge(o.tier)}</td><td class="num"><b>${fmt(q)}</b></td></tr>`;
+    });
+    stepHtml+='</tbody></table>';
+  }
+
+  // --- albero (lordo) ---
+  function treeHtml(node, isRoot){
+    let h=`<div class="${isRoot?'':'node'}">
+      <b>${fmt(node.qty)}×</b> ${node.name} ${node.tier===1?'<span class="mini-tag">(minerale)</span>':''}${node.cycle?' <span style="color:var(--danger)">⚠ ciclo!</span>':''}`;
+    if(node.children&&node.children.length){
+      node.children.forEach(ch=>{ h+=treeHtml(ch,false); });
+    }
+    h+='</div>';
+    return h;
+  }
+
+  // --- lista di produzione con magazzino ---
+  const involved={};
+  Object.keys(requirement).forEach(k=>{ if(requirement[k]>0) involved[k]=production[k]||0; });
+  involved[id]=production[id]||0;
+  const order=productionOrder(involved);
+  let checkHtml="";
+  order.forEach(iid=>{
+    const o=getItem(iid); if(!o) return;
+    const net=production[iid]||0;
+    const req=requirement[iid]||0;
+    const have=Math.max(0, owned[iid]||0);
+    const verb = o.tier===1 ? "Raccogli" : "Produci";
+    const us=usagesOf(iid, production);
+    let usageHtml;
+    if(!us.length){
+      usageHtml=`<div class="usage-empty">🏁 Prodotto finale — non viene usato in altre ricette.</div>`;
+    }else{
+      usageHtml=us.map(u=>`<div class="usage-row">→ <b>${fmt(u.total)}×</b> per <b>${u.parent.name}</b> ${tierBadge(u.parent.tier)} <span class="mini-tag">(${fmt(u.perUnit)}× a pezzo × ${fmt(production[u.parent.id]||0)} pezzi)</span></div>`).join("");
+    }
+    let note="";
+    if(net===0 && req>0) note=`<span class="inv-note covered">✓ già coperto dal magazzino (servono ${fmt(req)}, ne hai ${fmt(have)})</span>`;
+    else if(have>0) note=`<span class="inv-note">servono ${fmt(req)}, ne hai ${fmt(have)} → ${verb.toLowerCase()} <b>${fmt(net)}</b></span>`;
+
+    checkHtml+=`<div class="check-item${net===0&&req>0?' covered':''}" data-id="${iid}">
+      <div class="check-row" onclick="toggleExpand(this)">
+        <div class="box" onclick="toggleDone(this,event)">✓</div>
+        <div class="q">${fmt(req)} ×</div>
+        <div class="label"><span class="verb">${verb}</span> ${o.name} ${tierBadge(o.tier)}</div>
+        <div class="caret">▾</div>
+      </div>
+      <div class="inv-bar">
+        <span class="inv-lbl">📦 Hai già:</span>
+        <input class="inv-input" type="number" min="0" value="${have||''}" placeholder="0"
+               onclick="event.stopPropagation()" onchange="setOwned('${iid}',this.value)">
+        ${note}
+      </div>
+      <div class="usage">${usageHtml}</div>
+    </div>`;
+  });
+
+  out.innerHTML=`
+    <div class="card">
+      <h2>Per produrre ${fmt(qty)}× ${it.name} ${tierBadge(it.tier)}</h2>
+      <div class="sub">Inserisci in ogni riga quanto ne hai già a magazzino: il fabbisogno si aggiorna a cascata.</div>
+    </div>
+    <div class="card">
+      <h2>✅ Lista di produzione</h2>
+      <div class="sub">Dal basso verso l'alto: prima raccogli i minerali, poi sali fino al prodotto finale. Clicca una riga quando l'hai completata (rossa → verde). Apri la riga per vedere dove viene usata.</div>
+      <div class="check-head">
+        <b id="check-progress">0 / 0 completati</b>
+        <div class="toolbar">
+          <button class="btn ghost small" onclick="resetOwned()">Azzera magazzino</button>
+          <button class="btn ghost small" onclick="resetChecks()">Azzera spunte</button>
+        </div>
+      </div>
+      <div class="progress-bar"><span id="progress-fill"></span></div>
+      <div id="check-list">${checkHtml}</div>
+    </div>
+    <div class="row" style="align-items:stretch">
+      <div class="card" style="flex:1">
+        <h2 style="color:var(--green)">⛏️ Minerali grezzi totali</h2>
+        <div class="sub">Da estrarre (al netto del magazzino).</div>
+        ${rawHtml}
+      </div>
+      <div class="card" style="flex:1">
+        <h2>🔧 Passaggi intermedi</h2>
+        <div class="sub">Lingotti e craft da fabbricare (al netto del magazzino).</div>
+        ${stepHtml}
+      </div>
+    </div>
+    <div class="card">
+      <h2>🌳 Catena completa</h2>
+      <div class="sub">Struttura della ricetta, quantità lorde (non considera il magazzino).</div>
+      <div class="tree">${treeHtml(tree,true)}</div>
+    </div>
+  `;
+  // riapplica spunte e tendine aperte
+  document.querySelectorAll("#check-list .check-item").forEach(el=>{
+    const cid=el.dataset.id;
+    if(doneSet[cid]) el.classList.add("done");
+    if(openSet[cid]) el.classList.add("open");
+  });
+  updateProgress();
+}
+
+/* ====================== ESEMPIO / IMPORT / EXPORT ====================== */
+document.getElementById("btn-example").onclick=()=>{
+  if(DB.items.length && !confirm("Questo sostituirà gli oggetti attuali con un esempio. Continuare?")) return;
+  const mk=(name,tier,ings)=>({id:uid(),name,tier,ingredients:ings||[]});
+  const ferro=mk("Ferro grezzo",1);
+  const carbone=mk("Carbone",1);
+  const rame=mk("Rame grezzo",1);
+  const oro=mk("Oro grezzo",1);
+  const lingFerro=mk("Lingotto di Ferro",2,[{id:ferro.id,qty:2},{id:carbone.id,qty:1}]);
+  const lingRame=mk("Lingotto di Rame",2,[{id:rame.id,qty:2}]);
+  const acciaio=mk("Lingotto d'Acciaio",2,[{id:lingFerro.id,qty:2},{id:carbone.id,qty:3}]);
+  const lingOro=mk("Lingotto d'Oro",2,[{id:oro.id,qty:3}]);
+  const ingranaggio=mk("Ingranaggio",3,[{id:lingFerro.id,qty:4},{id:lingRame.id,qty:2}]);
+  const spada=mk("Spada d'Acciaio",3,[{id:acciaio.id,qty:3},{id:ingranaggio.id,qty:1},{id:lingOro.id,qty:1}]);
+  DB={items:[ferro,carbone,rame,oro,lingFerro,lingRame,acciaio,lingOro,ingranaggio,spada], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}};
+  doneSet=DB.done; openSet=DB.open;
+  save(); renderItems(); refreshCalcSelect(); resetForm();
+  document.getElementById("calc-results").innerHTML="";
+  toast("Esempio caricato — prova a calcolare la Spada d'Acciaio!");
+};
+
+document.getElementById("btn-export").onclick=()=>{
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  const d=new Date();
+  const stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}-${String(d.getMinutes()).padStart(2,"0")}`;
+  a.href=URL.createObjectURL(blob);
+  a.download=`calcolatore_crafting_${stamp}.json`;
+  a.click();
+  toast("Salvato tutto: prodotti, magazzino e craft in corso");
+};
+document.getElementById("btn-import").onclick=()=>document.getElementById("file-input").click();
+document.getElementById("file-input").onchange=(e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d.items) throw 0;
+      DB=d;
+      if(!DB.owned) DB.owned={};
+      if(!DB.calc) DB.calc={rootId:null,qty:1};
+      if(!DB.done) DB.done={};
+      if(!DB.open) DB.open={};
+      doneSet=DB.done; openSet=DB.open;
+      save(); renderItems(); refreshCalcSelect(); restoreCalc();
+      toast("Importato tutto: prodotti, magazzino e craft in corso");
+    }catch(err){ toast("File non valido"); }
+  };
+  r.readAsText(f);
+  e.target.value="";
+};
+document.getElementById("btn-clear").onclick=()=>{
+  if(!confirm("Eliminare TUTTI gli oggetti? Operazione irreversibile.")) return;
+  DB={items:[], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}};
+  doneSet=DB.done; openSet=DB.open;
+  save(); renderItems(); refreshCalcSelect(); resetForm();
+  document.getElementById("calc-results").innerHTML="";
+  toast("Tutto eliminato");
+};
+
+document.getElementById("btn-newcraft").onclick=newCraft;
+
+/* ripristina il craft salvato (prodotto, quantità, risultati) */
+function restoreCalc(){
+  if(DB.calc && DB.calc.rootId && getItem(DB.calc.rootId)){
+    document.getElementById("calc-item").value=DB.calc.rootId;
+    document.getElementById("calc-qty").value=DB.calc.qty;
+    renderCalc(true);
+  }
+}
+
+/* ====================== AVVIO ====================== */
+load();
+resetForm();
+renderItems();
+refreshCalcSelect();
+restoreCalc();
+
+/* registra il service worker per il funzionamento offline (solo se servito via http/https) */
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
