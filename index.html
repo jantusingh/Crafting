@@ -159,6 +159,46 @@
   .inv-note.covered{color:var(--green)}
   .check-item.covered{opacity:.75;border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.07)}
   .check-item.covered .q{color:var(--green)}
+  .check-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+  .check-col{min-width:0}
+  .col-head{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;margin-bottom:10px;border-radius:9px;text-align:center}
+  .check-cols .check-row{gap:10px;padding:11px 12px}
+  .check-cols .check-row .q{min-width:0}
+  .check-cols .inv-bar{padding:0 12px 11px 12px}
+  .check-cols .usage{padding:4px 12px 12px 12px}
+  @media (max-width:880px){ .check-cols{grid-template-columns:1fr} }
+  .time-line{padding:0 12px 8px 12px;font-size:13px;color:var(--t1)}
+  .time-line b{color:var(--txt)}
+  .time-line.no-speed{color:var(--muted)}
+  .sc-panels{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;align-items:start}
+  @media (max-width:760px){ .sc-panels{grid-template-columns:1fr} }
+  .sc-panel h2{margin-bottom:2px}
+  .sc-lines{display:flex;flex-direction:column;gap:10px;margin:16px 0 14px}
+  .sc-line{display:flex;align-items:center;gap:10px}
+  .sc-line-num{
+    flex:0 0 28px;height:28px;border-radius:8px;background:var(--bg2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--muted);
+  }
+  .sc-line select{flex:1}
+  .sc-line .btn{flex:0 0 auto}
+  .sc-add-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .sc-limit{font-size:12px;color:var(--muted)}
+  .sc-qty{font-size:13px;font-weight:800;color:var(--gold);white-space:nowrap;min-width:72px;text-align:right}
+  .sc-info{font-size:12px;color:var(--muted);line-height:1.4;flex:1 1 140px;text-align:right}
+  .sc-info b{color:var(--gold)}
+  .sc-info.sc-done{color:var(--green)}
+  .sc-info.sc-idle{color:var(--muted);font-style:italic}
+  .sc-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle}
+  .sc-tag.sc-smelt{background:rgba(255,198,75,.2);color:var(--t2)}
+  .sc-tag.sc-craft{background:rgba(200,155,255,.2);color:var(--t3)}
+  .sc-tag.sc-warn{background:rgba(255,107,107,.15);color:var(--danger)}
+  .sc-need-hint{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;padding:10px 12px;border-radius:9px;background:var(--bg2);border:1px solid var(--line)}
+  .sc-need-hint.sc-missing{border-color:rgba(255,107,107,.35);color:#ffb0b0}
+  .sc-need-hint.sc-ok{border-color:rgba(57,217,138,.35);color:var(--green)}
+  .sync-status{font-size:12px;color:var(--muted);margin-top:10px}
+  .sync-status.ok{color:var(--green)}
+  .sync-status.err{color:var(--danger)}
+  .sync-code{font-family:ui-monospace,monospace;font-size:18px;font-weight:800;letter-spacing:3px;color:var(--gold)}
 </style>
 </head>
 <body>
@@ -173,6 +213,8 @@
 <div class="wrap">
   <div class="tabs">
     <div class="tab active" data-tab="calc">🧮 Calcola</div>
+    <div class="tab" data-tab="sc">🔥 Smelt / Craft</div>
+    <div class="tab" data-tab="sync">☁️ Sync</div>
     <div class="tab" data-tab="items">📦 Oggetti &amp; Ricette</div>
   </div>
 
@@ -201,6 +243,92 @@
     <div id="calc-results"></div>
   </section>
 
+  <!-- ============ TAB SMELT / CRAFT ============ -->
+  <section id="tab-sc" class="hidden">
+    <div class="card">
+      <h2>Smelt / Craft</h2>
+      <div class="sub">Assegna cosa produrre su ogni linea. <b>Migliore</b> omogeneizza i tempi: precraft + colli di bottiglia sulle linee, craft veloci al login. Stesso oggetto su più linee = parallelo.</div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn secondary small" id="btn-sc-from-calc" type="button">🔗 Collega linee al calcolo</button>
+        <button class="btn small" id="btn-sc-best" type="button" title="Assegna le linee per il tempo totale più basso">⭐ Migliore</button>
+      </div>
+    </div>
+    <div class="sc-panels">
+      <div class="card sc-panel">
+        <h2 style="color:var(--t2)">🔥 Smelt</h2>
+        <div class="sub">Fonderia — oggetti Fascia 2 (lingotti)</div>
+        <div class="sc-lines" id="smelt-lines"></div>
+        <div class="sc-add-row">
+          <button class="btn secondary small" id="btn-add-smelt" type="button">+ Aggiungi linea</button>
+          <span class="sc-limit" id="smelt-limit"></span>
+        </div>
+        <div id="smelt-hint"></div>
+      </div>
+      <div class="card sc-panel">
+        <h2 style="color:var(--t3)">⚒️ Craft</h2>
+        <div class="sub">Workshop — oggetti Fascia 3 (craft)</div>
+        <div class="sc-lines" id="craft-lines"></div>
+        <div class="sc-add-row">
+          <button class="btn secondary small" id="btn-add-craft" type="button">+ Aggiungi linea</button>
+          <span class="sc-limit" id="craft-limit"></span>
+        </div>
+        <div id="craft-hint"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB SYNC ============ -->
+  <section id="tab-sync" class="hidden">
+    <div class="card">
+      <h2>☁️ Sincronizza tra dispositivi</h2>
+      <div class="sub">Ufficio, casa, smartphone: stesso craft, stesse spunte (34/56), stesso magazzino e linee Smelt/Craft.</div>
+      <div class="hint">
+        <b>Come funziona:</b> crea un <b>Codice sync</b> e inseriscilo uguale su tutti i dispositivi. Con il cloud attivo, ogni modifica si salva online e all'apertura si scarica l'ultima versione.
+      </div>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:2">
+          <label>Codice sync (uguale su tutti i device)</label>
+          <input id="sync-code" placeholder="Es. ABC12XY9" maxlength="12" style="text-transform:uppercase">
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn secondary small" id="btn-sync-gen" type="button">Genera codice</button>
+          <button class="btn small" id="btn-sync-save-code" type="button">Salva codice</button>
+        </div>
+      </div>
+      <label style="margin-top:14px;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="sync-auto" style="width:auto">
+        Sincronizzazione automatica con il cloud
+      </label>
+      <div class="toolbar" style="margin-top:14px">
+        <button class="btn secondary small" id="btn-sync-pull" type="button">⬇️ Scarica dal cloud</button>
+        <button class="btn secondary small" id="btn-sync-push" type="button">⬆️ Carica sul cloud</button>
+        <button class="btn ghost small" id="btn-sync-clipboard" type="button">📋 Copia dati</button>
+        <button class="btn ghost small" id="btn-sync-paste" type="button">📥 Incolla dati</button>
+      </div>
+      <div class="sync-status" id="sync-status">Cloud non configurato — usa Copia/Incolla oppure configura Firebase sotto.</div>
+    </div>
+    <div class="card">
+      <h2>Configurazione cloud (una volta sola)</h2>
+      <div class="sub">Gratuito con <a href="https://console.firebase.google.com/" target="_blank" rel="noopener" style="color:var(--accent)">Firebase</a>. Crea un progetto → Firestore → incolla qui API Key e Project ID.</div>
+      <div class="row">
+        <div style="flex:1">
+          <label>API Key</label>
+          <input id="fb-apikey" placeholder="AIza...">
+        </div>
+        <div style="flex:1">
+          <label>Project ID</label>
+          <input id="fb-project" placeholder="mio-progetto-123">
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn secondary small" id="btn-fb-save" type="button">Salva config Firebase</button>
+      </div>
+      <div class="hint" style="margin-top:12px;margin-bottom:0">
+        Regole Firestore (testo → Regole): <code style="font-size:11px">match /crafting/{id}{ allow read, write: if true; }</code> — il codice sync fa da password.
+      </div>
+    </div>
+  </section>
+
   <!-- ============ TAB OGGETTI ============ -->
   <section id="tab-items" class="hidden">
     <div class="card">
@@ -221,6 +349,17 @@
             <option value="2">Fascia 2 — Lingotto</option>
             <option value="3">Fascia 3 — Craft</option>
           </select>
+        </div>
+        <div style="flex:1.5">
+          <label>Velocità di produzione</label>
+          <div style="display:flex;gap:6px">
+            <input id="it-speed" type="text" inputmode="decimal" placeholder="es. 0,075" style="flex:1">
+            <select id="it-speed-unit" style="flex:0 0 auto;width:auto;min-width:118px">
+              <option value="rate">pezzi/sec</option>
+              <option value="time">sec/pezzo</option>
+            </select>
+          </div>
+          <div class="sub" id="it-speed-help" style="margin:6px 0 0;font-size:11px"></div>
         </div>
       </div>
 
@@ -254,12 +393,17 @@
 <div class="toast" id="toast"></div>
 <input type="file" id="file-input" accept=".json" class="hidden">
 
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 <script>
 /* ====================== DATI ====================== */
-let DB = { items: [], owned: {}, calc:{rootId:null,qty:1}, done:{}, open:{} };
+let DB = { items: [], owned: {}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]} };
 // items: ricette ; owned: magazzino {id:qtà} ; calc: craft corrente ; done/open: stato spunte e tendine
 let editingId = null;
 const STORE_KEY = "crafting_calc_db_v1";
+const SYNC_CODE_KEY = "craft_sync_code";
+const SYNC_AUTO_KEY = "craft_sync_auto";
+const FB_CFG_KEY = "craft_firebase_cfg";
 
 function uid(){ return "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
@@ -315,6 +459,8 @@ function toggleDone(box, ev){
   item.classList.toggle("done");
   if(item.classList.contains("done")) doneSet[id]=true; else delete doneSet[id];
   save(); updateProgress();
+  if(DB.calc && DB.calc.rootId) renderCalc(true);
+  else renderScPanels();
 }
 function toggleExpand(row){
   const item=row.closest(".check-item"), id=item.dataset.id;
@@ -327,6 +473,8 @@ function resetChecks(){
   save();
   document.querySelectorAll("#check-list .check-item.done").forEach(r=>r.classList.remove("done"));
   updateProgress();
+  if(DB.calc && DB.calc.rootId) renderCalc(true);
+  else renderScPanels();
 }
 function newCraft(){
   if(!confirm("Iniziare un nuovo craft? Verranno azzerati prodotto, quantità, spunte e magazzino.")) return;
@@ -364,13 +512,61 @@ function load(){
   if(!DB.calc) DB.calc={rootId:null,qty:1};
   if(!DB.done) DB.done={};
   if(!DB.open) DB.open={};
-  doneSet=DB.done; openSet=DB.open;     // riferimenti diretti allo stato salvato
+  if(!DB._updated) DB._updated=0;
+  ensureScState();
+  doneSet=DB.done; openSet=DB.open;
 }
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+let cloudPushTimer=null;
+function save(){
+  DB._updated=Date.now();
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  scheduleCloudPush();
+}
+function scheduleCloudPush(){
+  if(localStorage.getItem(SYNC_AUTO_KEY)!=="1") return;
+  if(!localStorage.getItem(SYNC_CODE_KEY)) return;
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer=setTimeout(()=>pushCloud(true), 2000);
+}
 function getItem(id){ return DB.items.find(i=>i.id===id); }
 function idx(id){ return DB.items.findIndex(i=>i.id===id); }   // ordine di inserimento = ordine di difficoltà
 function tierName(t){ return t==1?"Minerale":t==2?"Lingotto":"Craft"; }
 function tierBadge(t){ return `<span class="badge b${t}">F${t} · ${tierName(t)}</span>`; }
+
+/* numeri con la virgola: "0,075" -> 0.075 ; e per mostrarli: 0.075 -> "0,075" */
+function parseNum(v){ const n=parseFloat(String(v==null?"":v).replace(",",".").trim()); return isFinite(n)?n:0; }
+function numStr(n){ return String(n).replace(".",","); }
+function defaultUnitForTier(t){ return String(t)==="3" ? "time" : "rate"; }
+function speedUnitOf(it){ return it.speedUnit || defaultUnitForTier(it.tier); }
+
+/* secondi per 1 pezzo, in base all'unità scelta per l'oggetto */
+function secPerUnit(it){
+  const s = (it && it.speed) ? Number(it.speed) : 0;
+  if(s<=0) return 0;
+  return speedUnitOf(it)==="time" ? s : 1/s;   // time = sec/pezzo ; rate = pezzi/sec
+}
+/* formatta un tempo in secondi in g/h/m/s */
+function fmtTime(sec){
+  if(!isFinite(sec) || sec<=0) return "0 s";
+  sec=Math.ceil(sec);
+  const d=Math.floor(sec/86400); sec-=d*86400;
+  const h=Math.floor(sec/3600); sec-=h*3600;
+  const m=Math.floor(sec/60); const s=sec-m*60;
+  const p=[];
+  if(d) p.push(d+" g");
+  if(h) p.push(h+" h");
+  if(m) p.push(m+" m");
+  if(s||!p.length) p.push(s+" s");
+  return p.join(" ");
+}
+/* testo di aiuto sotto il campo velocità */
+function updateSpeedHelp(){
+  const t=tierSel.value;
+  const building = t==="1" ? "Miniera" : t==="2" ? "Fonderia" : "Workshop";
+  const unit=document.getElementById("it-speed-unit").value;
+  const u = unit==="time" ? "secondi per 1 pezzo" : "pezzi prodotti al secondo";
+  document.getElementById("it-speed-help").textContent = `${building}: ${u} — puoi usare i decimali (es. 0,075)`;
+}
 
 /* ====================== TOAST ====================== */
 let toastT;
@@ -387,16 +583,504 @@ document.querySelectorAll(".tab").forEach(t=>{
     t.classList.add("active");
     const tab=t.dataset.tab;
     document.getElementById("tab-calc").classList.toggle("hidden", tab!=="calc");
+    document.getElementById("tab-sc").classList.toggle("hidden", tab!=="sc");
+    document.getElementById("tab-sync").classList.toggle("hidden", tab!=="sync");
     document.getElementById("tab-items").classList.toggle("hidden", tab!=="items");
     if(tab==="calc") refreshCalcSelect();
+    if(tab==="sc") renderScPanels();
+    if(tab==="sync") updateSyncUI();
   };
 });
+
+/* ====================== SMELT / CRAFT ====================== */
+const SC_MAX = 10;
+
+function ensureScState(){
+  if(!DB.smelter || !Array.isArray(DB.smelter.lines) || !DB.smelter.lines.length) DB.smelter={lines:[""]};
+  if(!DB.crafter || !Array.isArray(DB.crafter.lines) || !DB.crafter.lines.length) DB.crafter={lines:[""]};
+  DB.smelter.lines=DB.smelter.lines.slice(0, SC_MAX);
+  DB.crafter.lines=DB.crafter.lines.slice(0, SC_MAX);
+}
+
+function scOptionsHtml(tier, selectedId){
+  let opts='<option value="">— scegli oggetto —</option>';
+  const list=DB.items.filter(i=>i.tier===tier).sort((a,b)=>idx(a.id)-idx(b.id));
+  list.forEach(it=>{
+    const sel=it.id===selectedId?" selected":"";
+    opts+=`<option value="${it.id}"${sel}>${it.name}</option>`;
+  });
+  return opts;
+}
+
+function renderScLines(kind){
+  const tier=kind==="smelter"?2:3;
+  const boxId=kind==="smelter"?"smelt-lines":"craft-lines";
+  const lines=DB[kind].lines;
+  const c=document.getElementById(boxId);
+  if(!c) return;
+  const calc=getCalcProduction();
+  const production=calc?calc.production:{};
+  const hasCalc=!!calc;
+  if(!DB.items.some(i=>i.tier===tier)){
+    c.innerHTML=`<div class="empty" style="padding:16px">Nessun oggetto Fascia ${tier}. Aggiungine uno in Oggetti &amp; Ricette.</div>`;
+    return;
+  }
+  c.innerHTML=lines.map((id,i)=>{
+    const infoHtml=scLineInfo(kind, id, production, hasCalc);
+    return `
+    <div class="sc-line" data-kind="${kind}" data-idx="${i}">
+      <span class="sc-line-num">${i+1}</span>
+      <select class="sc-select">${scOptionsHtml(tier, id)}</select>
+      ${infoHtml}
+      ${lines.length>1 ? '<button class="btn danger small sc-rm" type="button" title="Rimuovi linea">✕</button>' : ""}
+    </div>`;
+  }).join("");
+  c.querySelectorAll(".sc-select").forEach(sel=>{
+    sel.onchange=()=>{
+      const row=sel.closest(".sc-line");
+      const k=row.dataset.kind, n=parseInt(row.dataset.idx,10);
+      DB[k].lines[n]=sel.value;
+      save();
+      renderScPanels();
+      if(DB.calc.rootId) renderCalc(true);
+    };
+  });
+  c.querySelectorAll(".sc-rm").forEach(btn=>{
+    btn.onclick=()=>{
+      const row=btn.closest(".sc-line");
+      const k=row.dataset.kind, n=parseInt(row.dataset.idx,10);
+      if(DB[k].lines.length<=1) return;
+      DB[k].lines.splice(n,1);
+      save(); renderScPanels();
+      if(DB.calc.rootId) renderCalc(true);
+    };
+  });
+}
+
+function renderScPanels(){
+  ensureScState();
+  renderScLines("smelter");
+  renderScLines("crafter");
+  scHintHtml("smelter", 2);
+  scHintHtml("crafter", 3);
+  const smeltN=DB.smelter.lines.length, craftN=DB.crafter.lines.length;
+  document.getElementById("btn-add-smelt").disabled=smeltN>=SC_MAX;
+  document.getElementById("btn-add-craft").disabled=craftN>=SC_MAX;
+  document.getElementById("smelt-limit").textContent=`${smeltN} / ${SC_MAX} linee`;
+  document.getElementById("craft-limit").textContent=`${craftN} / ${SC_MAX} linee`;
+}
+
+function addScLine(kind){
+  ensureScState();
+  if(DB[kind].lines.length>=SC_MAX){ toast(`Massimo ${SC_MAX} linee`); return; }
+  DB[kind].lines.push("");
+  save(); renderScPanels();
+  if(DB.calc.rootId) renderCalc(true);
+  toast("Linea aggiunta");
+}
+
+function clearScRefs(id){
+  ["smelter","crafter"].forEach(kind=>{
+    if(!DB[kind] || !DB[kind].lines) return;
+    DB[kind].lines=DB[kind].lines.map(x=>x===id?"":x);
+  });
+}
+
+/* produzione del craft corrente (per collegare Smelt/Craft) */
+function getCalcProduction(){
+  if(!DB.calc || !DB.calc.rootId || !getItem(DB.calc.rootId)) return null;
+  return calculate(DB.calc.rootId, DB.calc.qty, DB.owned||{});
+}
+
+/* quantità ancora da produrre: esclude spunte e magazzino (già nel netto production) */
+function remainingQty(id, production){
+  if(doneSet[id]) return 0;
+  return Math.max(0, production[id]||0);
+}
+
+function ratePerSec(it){
+  if(!it || !it.speed || it.speed<=0) return 0;
+  return speedUnitOf(it)==="time" ? 1/it.speed : it.speed;
+}
+
+function combinedRateForItem(itemId, kind){
+  let total=0;
+  DB[kind].lines.forEach(lid=>{
+    if(lid===itemId) total+=ratePerSec(getItem(lid));
+  });
+  return total;
+}
+
+/* pezzi/ora sommando tutte le linee sullo stesso oggetto — es. 1,4M/H */
+function fmtHourly(ratePerSec){
+  if(!ratePerSec || ratePerSec<=0) return "";
+  const h=ratePerSec*3600;
+  const abs=Math.abs(h);
+  let div,suf;
+  if(abs>=1e12){div=1e12;suf="T";}
+  else if(abs>=1e9){div=1e9;suf="B";}
+  else if(abs>=1e6){div=1e6;suf="M";}
+  else if(abs>=1e3){div=1e3;suf="K";}
+  else return String(Math.ceil(h))+"/H";
+  const v=Math.ceil(h*100/div)/100;
+  const s=v.toFixed(2).replace(/0+$/,"").replace(/\.$/,"").replace(".",",");
+  return s+suf+"/H";
+}
+
+function hourlyLabel(itemId, kind){
+  const r=combinedRateForItem(itemId, kind);
+  return r>0 ? ` — ${fmtHourly(r)}` : "";
+}
+
+function countLinesWithItem(itemId, kind){
+  return DB[kind].lines.filter(lid=>lid===itemId).length;
+}
+
+function remainingTimeForItem(itemId, kind, production){
+  const qty=remainingQty(itemId, production);
+  if(qty<=0) return 0;
+  const rate=combinedRateForItem(itemId, kind);
+  return rate>0 ? qty/rate : 0;
+}
+
+function scLineInfo(kind, itemId, production, hasCalc){
+  if(!itemId) return hasCalc ? "" : '<span class="sc-info sc-idle">—</span>';
+  const it=getItem(itemId);
+  if(!it) return "";
+  if(!hasCalc){
+    if(!it.speed || it.speed<=0) return '<span class="sc-info sc-idle">velocità non impostata</span>';
+    const hr=combinedRateForItem(itemId, kind);
+    if(hr>0) return `<span class="sc-info" title="Produzione oraria (tutte le linee su questo oggetto)">⚡ ${fmtHourly(hr)}</span>`;
+    const txt=speedUnitOf(it)==="time" ? `${numStr(it.speed)} sec/pezzo` : `${numStr(it.speed)} pz/sec`;
+    return `<span class="sc-info" title="Velocità di questa linea">⚡ ${txt}</span>`;
+  }
+  const rem=remainingQty(itemId, production);
+  if(rem<=0){
+    const hr=hourlyLabel(itemId, kind);
+    if(doneSet[itemId]) return `<span class="sc-info sc-done">✓ completato${hr}</span>`;
+    return `<span class="sc-info sc-done">✓ coperto${hr}</span>`;
+  }
+  const par=countLinesWithItem(itemId, kind);
+  const sec=remainingTimeForItem(itemId, kind, production);
+  const timeTxt=sec>0 ? `⏱ <b>${fmtTime(sec)}</b>` : "⏱ —";
+  const parTxt=par>1 ? ` <span class="mini-tag">×${par} linee parallele</span>` : "";
+  return `<span class="sc-info" title="Residuo dal calcolo (magazzino e spunte esclusi). Tempo con tutte le linee su questo oggetto.">→ <b>${fmt(rem)}</b> ${timeTxt}${parTxt}</span>`;
+}
+
+function neededItemsByTier(tier){
+  const calc=getCalcProduction();
+  if(!calc) return [];
+  const {production}=calc;
+  return Object.keys(production)
+    .filter(id=>{
+      const it=getItem(id);
+      return it && it.tier===tier && remainingQty(id, production)>0;
+    })
+    .sort((a,b)=>idx(a)-idx(b));
+}
+
+function scLineIndex(kind, itemId){
+  if(!itemId) return -1;
+  return DB[kind].lines.indexOf(itemId);
+}
+
+function scLineTag(iid, tier, production){
+  const rem=remainingQty(iid, production);
+  if(tier===2){
+    const li=scLineIndex("smelter", iid);
+    if(li>=0) return `<span class="sc-tag sc-smelt">Smelt L${li+1}</span>`;
+    if(rem>0) return `<span class="sc-tag sc-warn">Nessuna linea</span>`;
+  }
+  if(tier===3){
+    const li=scLineIndex("crafter", iid);
+    if(li>=0) return `<span class="sc-tag sc-craft">Craft L${li+1}</span>`;
+    if(rem>0) return `<span class="sc-tag sc-warn">Nessuna linea</span>`;
+  }
+  return "";
+}
+
+function applyScFromCalc(){
+  const t2=neededItemsByTier(2), t3=neededItemsByTier(3);
+  if(!t2.length && !t3.length){
+    toast("Niente da collegare: tutto già a magazzino o già spuntato");
+    return;
+  }
+  DB.smelter.lines=t2.length ? t2.slice(0, SC_MAX) : [""];
+  DB.crafter.lines=t3.length ? t3.slice(0, SC_MAX) : [""];
+  save();
+  renderScPanels();
+  if(DB.calc.rootId) renderCalc(true);
+  const extra=(t2.length>SC_MAX?` Smelt: solo ${SC_MAX}/${t2.length}.`:"")+(t3.length>SC_MAX?` Craft: solo ${SC_MAX}/${t3.length}.`:"");
+  toast("Linee collegate al calcolo"+extra);
+}
+
+/* === Ottimizzazione assegnazione linee (pulsante Migliore) === */
+function lineCountsFromAssign(arr){
+  const c={};
+  (arr||[]).forEach(id=>{ if(id) c[id]=(c[id]||0)+1; });
+  return c;
+}
+
+function finishTime(itemId, sc, cc, production, vis){
+  if(!itemId) return 0;
+  if(!vis) vis=new Set();
+  if(vis.has(itemId)) return 0;
+  vis.add(itemId);
+  const rem=remainingQty(itemId, production);
+  if(rem<=0) return 0;
+  const it=getItem(itemId);
+  if(!it) return 0;
+
+  let wait=0;
+  (it.ingredients||[]).forEach(g=>{
+    if(remainingQty(g.id, production)<=0) return;
+    wait=Math.max(wait, finishTime(g.id, sc, cc, production, vis));
+  });
+
+  const counts=it.tier===2?sc:(it.tier===3?cc:{});
+  const n=counts[itemId]||0;
+  const r=ratePerSec(it);
+  if(!r) return wait+(rem>0?1e15:0);
+  if(!n) return wait+rem/r;   // nessuna linea: stima 1 linea virtuale (spinge ad assegnare)
+  return wait+rem/(n*r);
+}
+
+function unassignedNeededPenalty(sc, cc, production){
+  let pen=0;
+  neededItemsByTier(2).forEach(id=>{
+    if((sc[id]||0)>0) return;
+    const r=ratePerSec(getItem(id));
+    const rem=remainingQty(id, production);
+    if(rem>0&&r) pen=Math.max(pen, rem/r);
+  });
+  neededItemsByTier(3).forEach(id=>{
+    if((cc[id]||0)>0) return;
+    const r=ratePerSec(getItem(id));
+    const rem=remainingQty(id, production);
+    if(rem>0&&r) pen=Math.max(pen, rem/r);
+  });
+  return pen;
+}
+
+function projectMakespan(smeltArr, craftArr, production){
+  const sc=lineCountsFromAssign(smeltArr);
+  const cc=lineCountsFromAssign(craftArr);
+  let max=0;
+  const seen=new Set();
+  const visit=id=>{
+    if(!id||seen.has(id)) return;
+    seen.add(id);
+    if(remainingQty(id, production)<=0) return;
+    const it=getItem(id);
+    if(!it||it.tier<2) return;
+    max=Math.max(max, finishTime(id, sc, cc, production, new Set()));
+  };
+  if(DB.calc&&DB.calc.rootId) visit(DB.calc.rootId);
+  Object.keys(production).forEach(visit);
+  max=Math.max(max, unassignedNeededPenalty(sc, cc, production));
+  return max;
+}
+
+function itemsForOptimize(tier, production){
+  return neededItemsByTier(tier)
+    .map(id=>({id, qty:remainingQty(id,production), rate:ratePerSec(getItem(id))}))
+    .filter(x=>x.qty>0);
+}
+
+function topoNeededIds(tier, production){
+  const ids=neededItemsByTier(tier);
+  const set=new Set(ids);
+  const order=[], perm=new Set(), temp=new Set();
+  function visit(id){
+    if(perm.has(id)) return;
+    if(temp.has(id)) return;
+    temp.add(id);
+    const it=getItem(id);
+    (it?.ingredients||[]).forEach(g=>{ if(set.has(g.id)) visit(g.id); });
+    temp.delete(id);
+    perm.add(id);
+    order.push(id);
+  }
+  ids.forEach(visit);
+  return order;
+}
+
+function unlockScore(itemId, tier, production){
+  let score=0;
+  const sameTier=new Set(neededItemsByTier(tier));
+  DB.items.forEach(p=>{
+    if(!sameTier.has(p.id)) return;
+    if(remainingQty(p.id, production)<=0) return;
+    const ing=(p.ingredients||[]).find(g=>g.id===itemId);
+    if(ing) score+=remainingQty(p.id, production)*ing.qty;
+  });
+  if(tier===2){
+    neededItemsByTier(3).forEach(pid=>{
+      if(remainingQty(pid, production)<=0) return;
+      const p=getItem(pid);
+      const ing=(p.ingredients||[]).find(g=>g.id===itemId);
+      if(ing) score+=remainingQty(pid, production)*ing.qty*2;
+    });
+  }
+  if(tier===3){
+    neededItemsByTier(3).forEach(pid=>{
+      if(remainingQty(pid, production)<=0) return;
+      const p=getItem(pid);
+      const ing=(p.ingredients||[]).find(g=>g.id===itemId);
+      if(ing) score+=remainingQty(pid, production)*ing.qty;
+    });
+  }
+  return score;
+}
+
+function itemPriority(tier, production){
+  const topo=topoNeededIds(tier, production);
+  const topoMap={};
+  topo.forEach((id,i)=>{ topoMap[id]=i; });
+  return itemsForOptimize(tier, production)
+    .filter(x=>x.rate>0)
+    .map(x=>({
+      ...x,
+      unlock:unlockScore(x.id, tier, production),
+      solo:x.qty/x.rate,
+      topo:topoMap[x.id]??999
+    }))
+    .sort((a,b)=>{
+      if(b.unlock!==a.unlock) return b.unlock-a.unlock;
+      if(a.topo!==b.topo) return a.topo-b.topo;
+      return b.solo-a.solo;
+    });
+}
+
+function soloFinish(id, production){
+  const r=ratePerSec(getItem(id));
+  const rem=remainingQty(id, production);
+  return r>0?rem/r:Infinity;
+}
+
+function lineFinish(id, count, production){
+  const r=ratePerSec(getItem(id));
+  const rem=remainingQty(id, production);
+  return count>0&&r>0?rem/(count*r):soloFinish(id, production);
+}
+
+function optimizeTierLines(tier, numLines, otherArr, production){
+  const kind=tier===2?"smelter":"crafter";
+  const ranked=itemPriority(tier, production);
+  if(!ranked.length) return DB[kind].lines.slice(0, numLines);
+
+  const assignment=[], counts={};
+  const SLOW_RATIO=0.12;   // sotto il 12% del collo di bottiglia → niente linea (si fa al login)
+  const neededIds=ranked.map(x=>x.id);
+  const tMax=Math.max(...neededIds.map(id=>soloFinish(id, production)).filter(t=>isFinite(t)));
+
+  /* Fase 1: precraft obbligatori (sbloccano altri craft) */
+  for(const it of ranked){
+    if(assignment.length>=numLines) break;
+    if(counts[it.id]||it.unlock<=0) continue;
+    assignment.push(it.id);
+    counts[it.id]=1;
+  }
+
+  /* Fase 1b: solo craft lenti (colli di bottiglia) */
+  for(const it of ranked){
+    if(assignment.length>=numLines) break;
+    if(counts[it.id]) continue;
+    if(it.solo>=tMax*SLOW_RATIO){
+      assignment.push(it.id);
+      counts[it.id]=1;
+    }
+  }
+
+  /* Fase 2: omogeneizza — linee extra sulla finizione più lenta già attiva */
+  while(assignment.length<numLines){
+    let bestId=null, bestFinish=-1;
+    for(const id of neededIds){
+      const c=counts[id]||0;
+      if(c<=0) continue;
+      const fin=lineFinish(id, c, production);
+      if(fin>bestFinish){ bestFinish=fin; bestId=id; }
+    }
+    if(!bestId){
+      bestId=neededIds.reduce((a,b)=>soloFinish(a,production)>soloFinish(b,production)?a:b);
+    }
+    assignment.push(bestId);
+    counts[bestId]=(counts[bestId]||0)+1;
+  }
+  return assignment;
+}
+
+function optimizeScBest(){
+  const calc=getCalcProduction();
+  if(!calc){ toast("Fai prima un calcolo"); return; }
+  const {production}=calc;
+  if(!neededItemsByTier(2).length && !neededItemsByTier(3).length){
+    toast("Niente da ottimizzare: tutto completato o coperto");
+    return;
+  }
+  const nS=DB.smelter.lines.length, nC=DB.crafter.lines.length;
+  let smelt=optimizeTierLines(2, nS, DB.crafter.lines, production);
+  let craft=optimizeTierLines(3, nC, smelt, production);
+  smelt=optimizeTierLines(2, nS, craft, production);
+  craft=optimizeTierLines(3, nC, smelt, production);
+  DB.smelter.lines=smelt.length?smelt:[""];
+  DB.crafter.lines=craft.length?craft:[""];
+  save();
+  renderScPanels();
+  if(DB.calc.rootId) renderCalc(true);
+  const noSpeed=itemsForOptimize(2,production).filter(x=>!x.rate).length
+    +itemsForOptimize(3,production).filter(x=>!x.rate).length;
+  const missT2=neededItemsByTier(2).filter(id=>!smelt.includes(id)).length;
+  const missT3=neededItemsByTier(3).filter(id=>!craft.includes(id)).length;
+  const onCraft=lineCountsFromAssign(craft);
+  let balMax=0, balMin=Infinity;
+  Object.keys(onCraft).forEach(id=>{
+    const t=lineFinish(id, onCraft[id], production);
+    if(isFinite(t)){ balMax=Math.max(balMax,t); balMin=Math.min(balMin,t); }
+  });
+  let msg=`Migliore — tempi omogeneizzati`;
+  if(isFinite(balMin)&&balMax>0) msg+=` (~${fmtTime(balMin)}–${fmtTime(balMax)} per linea)`;
+  if(missT2||missT3) msg+=` · ${missT2+missT3} craft veloci al login`;
+  if(noSpeed) msg+=` · ${noSpeed} senza velocità`;
+  toast(msg);
+}
+
+function scHintHtml(kind, tier){
+  const needed=neededItemsByTier(tier);
+  const boxId=kind==="smelter"?"smelt-hint":"craft-hint";
+  const el=document.getElementById(boxId);
+  if(!el) return;
+  if(!DB.calc || !DB.calc.rootId){
+    el.innerHTML='<div class="sc-need-hint">Fai un calcolo nella scheda Calcola per vedere qui le quantità da produrre.</div>';
+    return;
+  }
+  if(!needed.length){
+    el.innerHTML='<div class="sc-need-hint sc-ok">✓ Niente da produrre: già a magazzino, già spuntato o non richiesto dal calcolo.</div>';
+    return;
+  }
+  const assigned=new Set(DB[kind].lines.filter(x=>x));
+  const missing=needed.filter(id=>!assigned.has(id));
+  if(!missing.length){
+    el.innerHTML='<div class="sc-need-hint sc-ok">✓ Tutti gli oggetti necessari dal calcolo sono assegnati a una linea.</div>';
+    return;
+  }
+  const names=missing.map(id=>getItem(id).name).join(", ");
+  el.innerHTML=`<div class="sc-need-hint sc-missing">⚠ Non in linea (craft veloci — produci al login): <b>${names}</b></div>`;
+}
+
+document.getElementById("btn-add-smelt").onclick=()=>addScLine("smelter");
+document.getElementById("btn-add-craft").onclick=()=>addScLine("crafter");
+document.getElementById("btn-sc-from-calc").onclick=applyScFromCalc;
+document.getElementById("btn-sc-best").onclick=optimizeScBest;
 
 /* ====================== FORM OGGETTI ====================== */
 const tierSel=document.getElementById("it-tier");
 tierSel.onchange=()=>{
   document.getElementById("ing-section").style.display = tierSel.value==="1" ? "none" : "block";
+  document.getElementById("it-speed-unit").value = defaultUnitForTier(tierSel.value);
+  updateSpeedHelp();
 };
+document.getElementById("it-speed-unit").onchange=updateSpeedHelp;
 
 function ingOptionsHtml(selectedId){
   // ingredienti = qualsiasi oggetto tranne quello che stiamo modificando
@@ -426,10 +1110,13 @@ function resetForm(){
   editingId=null;
   document.getElementById("it-name").value="";
   tierSel.value="1";
+  document.getElementById("it-speed").value="";
+  document.getElementById("it-speed-unit").value="rate";
   document.getElementById("ing-list").innerHTML="";
   document.getElementById("ing-section").style.display="none";
   document.getElementById("form-title").textContent="Aggiungi un oggetto";
   document.getElementById("btn-cancel-edit").classList.add("hidden");
+  updateSpeedHelp();
 }
 document.getElementById("btn-cancel-edit").onclick=resetForm;
 
@@ -456,15 +1143,18 @@ document.getElementById("btn-save-item").onclick=()=>{
     if(ingredients.length===0){ toast("Aggiungi almeno un ingrediente"); return; }
   }
 
+  const speed=Math.max(0, parseNum(document.getElementById("it-speed").value));
+  const speedUnit=document.getElementById("it-speed-unit").value;
+
   if(editingId){
     const it=getItem(editingId);
-    it.name=name; it.tier=tier; it.ingredients=ingredients;
+    it.name=name; it.tier=tier; it.ingredients=ingredients; it.speed=speed; it.speedUnit=speedUnit;
     toast("Oggetto aggiornato");
   }else{
-    DB.items.push({id:uid(), name, tier, ingredients});
+    DB.items.push({id:uid(), name, tier, ingredients, speed, speedUnit});
     toast("Oggetto salvato");
   }
-  save(); resetForm(); renderItems();
+  save(); resetForm(); renderItems(); renderScPanels();
 };
 
 function moveItem(id, dir){           // dir = -1 (su) / +1 (giù), entro la stessa fascia
@@ -486,6 +1176,9 @@ function editItem(id){
   document.getElementById("btn-cancel-edit").classList.remove("hidden");
   document.getElementById("it-name").value=it.name;
   tierSel.value=it.tier;
+  document.getElementById("it-speed").value = it.speed ? numStr(it.speed) : "";
+  document.getElementById("it-speed-unit").value = speedUnitOf(it);
+  updateSpeedHelp();
   document.getElementById("ing-section").style.display = it.tier===1?"none":"block";
   document.getElementById("ing-list").innerHTML="";
   (it.ingredients||[]).forEach(ing=>addIngRow(ing.id, ing.qty));
@@ -503,7 +1196,8 @@ function deleteItem(id){
   // rimuovi riferimenti
   DB.items.forEach(i=>{ if(i.ingredients) i.ingredients=i.ingredients.filter(g=>g.id!==id); });
   if(DB.owned) delete DB.owned[id];
-  save(); renderItems();
+  clearScRefs(id);
+  save(); renderItems(); renderScPanels();
   if(editingId===id) resetForm();
   toast("Oggetto eliminato");
 }
@@ -516,6 +1210,10 @@ function recipeText(it){
     const o=getItem(g.id);
     return `${fmt(g.qty)}× ${o?o.name:"???"}`;
   }).join("  +  ");
+}
+function speedText(it){
+  if(!it.speed||it.speed<=0) return "⏱ velocità non impostata";
+  return speedUnitOf(it)==="time" ? `⏱ ${numStr(it.speed)} sec per pezzo` : `⏱ ${numStr(it.speed)} pezzi/sec`;
 }
 
 function renderItems(){
@@ -540,6 +1238,7 @@ function renderItems(){
           </div>
         </div>
         <div class="recipe">${recipeText(it)}</div>
+        <div class="recipe" style="margin-top:4px">${speedText(it)}</div>
         <div class="acts">
           <button class="btn secondary small" onclick="editItem('${it.id}')">Modifica</button>
           <button class="btn danger small" onclick="deleteItem('${it.id}')">Elimina</button>
@@ -684,7 +1383,7 @@ function renderCalc(preserve){
   Object.keys(requirement).forEach(k=>{ if(requirement[k]>0) involved[k]=production[k]||0; });
   involved[id]=production[id]||0;
   const order=productionOrder(involved);
-  let checkHtml="";
+  const cols={1:"",2:"",3:""};            // una colonna per fascia
   order.forEach(iid=>{
     const o=getItem(iid); if(!o) return;
     const net=production[iid]||0;
@@ -702,13 +1401,32 @@ function renderCalc(preserve){
     if(net===0 && req>0) note=`<span class="inv-note covered">✓ già coperto dal magazzino (servono ${fmt(req)}, ne hai ${fmt(have)})</span>`;
     else if(have>0) note=`<span class="inv-note">servono ${fmt(req)}, ne hai ${fmt(have)} → ${verb.toLowerCase()} <b>${fmt(net)}</b></span>`;
 
-    checkHtml+=`<div class="check-item${net===0&&req>0?' covered':''}" data-id="${iid}">
+    const spu=secPerUnit(o);
+    const rem=remainingQty(iid, production);
+    let timeLine;
+    if(doneSet[iid]) timeLine=`<div class="time-line" style="color:var(--green)">✓ completato</div>`;
+    else if(rem<=0 && req>0) timeLine=`<div class="time-line" style="color:var(--green)">✓ coperto dal magazzino</div>`;
+    else if((o.tier===2||o.tier===3) && rem>0){
+      const kind=o.tier===2?"smelter":"crafter";
+      const sec=remainingTimeForItem(iid, kind, production);
+      const par=countLinesWithItem(iid, kind);
+      if(sec>0){
+        const parNote=par>1?`, ${par} linee parallele`:"";
+        timeLine=`<div class="time-line">⏱ <b>${fmtTime(sec)}</b> <span class="mini-tag">mancano ${fmt(rem)} pezzi${parNote}</span></div>`;
+      }else if(spu>0) timeLine=`<div class="time-line">⏱ <b>${fmtTime(spu*rem)}</b> <span class="mini-tag">per ${fmt(rem)} pezzi (1 linea)</span></div>`;
+      else timeLine=`<div class="time-line no-speed">⏱ <span class="mini-tag">velocità non impostata</span></div>`;
+    }else if(spu>0 && rem>0) timeLine=`<div class="time-line">⏱ <b>${fmtTime(spu*rem)}</b> <span class="mini-tag">per ${fmt(rem)} pezzi</span></div>`;
+    else if(rem>0) timeLine=`<div class="time-line no-speed">⏱ <span class="mini-tag">velocità non impostata (in Oggetti &amp; Ricette)</span></div>`;
+    else timeLine="";
+
+    cols[o.tier]+=`<div class="check-item${net===0&&req>0?' covered':''}" data-id="${iid}">
       <div class="check-row" onclick="toggleExpand(this)">
         <div class="box" onclick="toggleDone(this,event)">✓</div>
         <div class="q">${fmt(req)} ×</div>
-        <div class="label"><span class="verb">${verb}</span> ${o.name} ${tierBadge(o.tier)}</div>
+        <div class="label"><span class="verb">${verb}</span> ${o.name} ${tierBadge(o.tier)}${scLineTag(iid, o.tier, production)}</div>
         <div class="caret">▾</div>
       </div>
+      ${timeLine}
       <div class="inv-bar">
         <span class="inv-lbl">📦 Hai già:</span>
         <input class="inv-input" type="number" min="0" value="${have||''}" placeholder="0"
@@ -718,6 +1436,12 @@ function renderCalc(preserve){
       <div class="usage">${usageHtml}</div>
     </div>`;
   });
+  const colTitles={1:"⛏️ F1 · Minerali",2:"🔩 F2 · Lingotti",3:"⚒️ F3 · Craft"};
+  const checkHtml=[1,2,3].map(t=>`
+    <div class="check-col">
+      <div class="col-head b${t}">${colTitles[t]}</div>
+      ${cols[t] || '<div class="empty" style="padding:18px">—</div>'}
+    </div>`).join("");
 
   out.innerHTML=`
     <div class="card">
@@ -726,16 +1450,17 @@ function renderCalc(preserve){
     </div>
     <div class="card">
       <h2>✅ Lista di produzione</h2>
-      <div class="sub">Dal basso verso l'alto: prima raccogli i minerali, poi sali fino al prodotto finale. Clicca una riga quando l'hai completata (rossa → verde). Apri la riga per vedere dove viene usata.</div>
+      <div class="sub">Tre colonne per fascia (T1 → T2 → T3), in difficoltà crescente. Le righe F2/F3 mostrano la linea Smelt/Craft assegnata. Clicca una riga quando l'hai completata (rossa → verde).</div>
       <div class="check-head">
         <b id="check-progress">0 / 0 completati</b>
         <div class="toolbar">
+          <button class="btn secondary small" onclick="applyScFromCalc()">🔗 Collega linee</button>
           <button class="btn ghost small" onclick="resetOwned()">Azzera magazzino</button>
           <button class="btn ghost small" onclick="resetChecks()">Azzera spunte</button>
         </div>
       </div>
       <div class="progress-bar"><span id="progress-fill"></span></div>
-      <div id="check-list">${checkHtml}</div>
+      <div id="check-list" class="check-cols">${checkHtml}</div>
     </div>
     <div class="row" style="align-items:stretch">
       <div class="card" style="flex:1">
@@ -762,25 +1487,26 @@ function renderCalc(preserve){
     if(openSet[cid]) el.classList.add("open");
   });
   updateProgress();
+  renderScPanels();
 }
 
 /* ====================== ESEMPIO / IMPORT / EXPORT ====================== */
 document.getElementById("btn-example").onclick=()=>{
   if(DB.items.length && !confirm("Questo sostituirà gli oggetti attuali con un esempio. Continuare?")) return;
-  const mk=(name,tier,ings)=>({id:uid(),name,tier,ingredients:ings||[]});
-  const ferro=mk("Ferro grezzo",1);
-  const carbone=mk("Carbone",1);
-  const rame=mk("Rame grezzo",1);
-  const oro=mk("Oro grezzo",1);
-  const lingFerro=mk("Lingotto di Ferro",2,[{id:ferro.id,qty:2},{id:carbone.id,qty:1}]);
-  const lingRame=mk("Lingotto di Rame",2,[{id:rame.id,qty:2}]);
-  const acciaio=mk("Lingotto d'Acciaio",2,[{id:lingFerro.id,qty:2},{id:carbone.id,qty:3}]);
-  const lingOro=mk("Lingotto d'Oro",2,[{id:oro.id,qty:3}]);
-  const ingranaggio=mk("Ingranaggio",3,[{id:lingFerro.id,qty:4},{id:lingRame.id,qty:2}]);
-  const spada=mk("Spada d'Acciaio",3,[{id:acciaio.id,qty:3},{id:ingranaggio.id,qty:1},{id:lingOro.id,qty:1}]);
-  DB={items:[ferro,carbone,rame,oro,lingFerro,lingRame,acciaio,lingOro,ingranaggio,spada], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}};
+  const mk=(name,tier,ings,speed)=>({id:uid(),name,tier,ingredients:ings||[],speed:speed||0,speedUnit:tier===3?"time":"rate"});
+  const ferro=mk("Ferro grezzo",1,null,5);
+  const carbone=mk("Carbone",1,null,4);
+  const rame=mk("Rame grezzo",1,null,3);
+  const oro=mk("Oro grezzo",1,null,1);
+  const lingFerro=mk("Lingotto di Ferro",2,[{id:ferro.id,qty:2},{id:carbone.id,qty:1}],2);
+  const lingRame=mk("Lingotto di Rame",2,[{id:rame.id,qty:2}],2);
+  const acciaio=mk("Lingotto d'Acciaio",2,[{id:lingFerro.id,qty:2},{id:carbone.id,qty:3}],1);
+  const lingOro=mk("Lingotto d'Oro",2,[{id:oro.id,qty:3}],0.5);
+  const ingranaggio=mk("Ingranaggio",3,[{id:lingFerro.id,qty:4},{id:lingRame.id,qty:2}],10);
+  const spada=mk("Spada d'Acciaio",3,[{id:acciaio.id,qty:3},{id:ingranaggio.id,qty:1},{id:lingOro.id,qty:1}],30);
+  DB={items:[ferro,carbone,rame,oro,lingFerro,lingRame,acciaio,lingOro,ingranaggio,spada], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}};
   doneSet=DB.done; openSet=DB.open;
-  save(); renderItems(); refreshCalcSelect(); resetForm();
+  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels();
   document.getElementById("calc-results").innerHTML="";
   toast("Esempio caricato — prova a calcolare la Spada d'Acciaio!");
 };
@@ -803,13 +1529,7 @@ document.getElementById("file-input").onchange=(e)=>{
     try{
       const d=JSON.parse(r.result);
       if(!d.items) throw 0;
-      DB=d;
-      if(!DB.owned) DB.owned={};
-      if(!DB.calc) DB.calc={rootId:null,qty:1};
-      if(!DB.done) DB.done={};
-      if(!DB.open) DB.open={};
-      doneSet=DB.done; openSet=DB.open;
-      save(); renderItems(); refreshCalcSelect(); restoreCalc();
+      applyImportedDB(d, false);
       toast("Importato tutto: prodotti, magazzino e craft in corso");
     }catch(err){ toast("File non valido"); }
   };
@@ -818,14 +1538,178 @@ document.getElementById("file-input").onchange=(e)=>{
 };
 document.getElementById("btn-clear").onclick=()=>{
   if(!confirm("Eliminare TUTTI gli oggetti? Operazione irreversibile.")) return;
-  DB={items:[], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}};
+  DB={items:[], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}};
   doneSet=DB.done; openSet=DB.open;
-  save(); renderItems(); refreshCalcSelect(); resetForm();
+  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels();
   document.getElementById("calc-results").innerHTML="";
   toast("Tutto eliminato");
 };
 
 document.getElementById("btn-newcraft").onclick=newCraft;
+
+/* ====================== SYNC MULTI-DEVICE ====================== */
+let fbDb=null;
+
+function getFirebaseConfig(){
+  try{ const c=JSON.parse(localStorage.getItem(FB_CFG_KEY)); if(c&&c.apiKey&&c.projectId) return c; }catch(e){}
+  return null;
+}
+
+function initFirebase(){
+  const cfg=getFirebaseConfig();
+  if(!cfg) return false;
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(cfg);
+    fbDb=firebase.firestore();
+    return true;
+  }catch(e){ return false; }
+}
+
+function syncCode(){ return (localStorage.getItem(SYNC_CODE_KEY)||"").trim().toUpperCase(); }
+
+function setSyncStatus(msg, ok){
+  const el=document.getElementById("sync-status");
+  if(!el) return;
+  el.textContent=msg;
+  el.className="sync-status"+(ok===true?" ok":ok===false?" err":"");
+}
+
+function updateSyncUI(){
+  const code=document.getElementById("sync-code");
+  const auto=document.getElementById("sync-auto");
+  const cfg=getFirebaseConfig();
+  if(code) code.value=syncCode();
+  if(auto) auto.checked=localStorage.getItem(SYNC_AUTO_KEY)==="1";
+  const fk=document.getElementById("fb-apikey"), fp=document.getElementById("fb-project");
+  if(fk&&cfg) fk.value=cfg.apiKey||"";
+  if(fp&&cfg) fp.value=cfg.projectId||"";
+  if(!syncCode()) setSyncStatus("Inserisci un codice sync uguale su tutti i dispositivi.");
+  else if(!cfg) setSyncStatus("Codice salvato. Configura Firebase per il cloud automatico, oppure usa Copia/Incolla.");
+  else if(localStorage.getItem(SYNC_AUTO_KEY)==="1") setSyncStatus("Sync attivo — codice "+syncCode());
+  else setSyncStatus("Codice "+syncCode+" — premi Carica/Scarica o attiva sync automatica.");
+}
+
+function applyImportedDB(d, skipCloud){
+  if(!d||!d.items) throw new Error("Dati non validi");
+  DB=d;
+  if(!DB.owned) DB.owned={};
+  if(!DB.calc) DB.calc={rootId:null,qty:1};
+  if(!DB.done) DB.done={};
+  if(!DB.open) DB.open={};
+  if(!DB.smelter) DB.smelter={lines:[""]};
+  if(!DB.crafter) DB.crafter={lines:[""]};
+  if(!DB._updated) DB._updated=Date.now();
+  ensureScState();
+  doneSet=DB.done; openSet=DB.open;
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  renderItems(); refreshCalcSelect(); restoreCalc(); renderScPanels();
+  if(!skipCloud) scheduleCloudPush();
+}
+
+function genSyncCode(){
+  const ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s=""; for(let i=0;i<8;i++) s+=ch[Math.floor(Math.random()*ch.length)];
+  return s;
+}
+
+async function pushCloud(silent){
+  const code=syncCode();
+  if(!code){ if(!silent) toast("Inserisci un codice sync"); return false; }
+  if(!initFirebase()){ if(!silent) toast("Configura Firebase nella scheda Sync"); return false; }
+  try{
+    const payload={...DB, _updated:DB._updated||Date.now()};
+    await fbDb.collection("crafting").doc(code).set({
+      data:JSON.stringify(payload),
+      updated:payload._updated
+    });
+    setSyncStatus("☁️ Salvato sul cloud — "+new Date().toLocaleString("it-IT"), true);
+    if(!silent) toast("Caricato sul cloud");
+    return true;
+  }catch(e){
+    setSyncStatus("Errore upload: "+e.message, false);
+    if(!silent) toast("Errore cloud");
+    return false;
+  }
+}
+
+async function pullCloud(silent){
+  const code=syncCode();
+  if(!code) return false;
+  if(!initFirebase()){ if(!silent) toast("Configura Firebase"); return false; }
+  try{
+    const snap=await fbDb.collection("crafting").doc(code).get();
+    if(!snap.exists){
+      if(!silent) toast("Nessun dato sul cloud per questo codice");
+      return false;
+    }
+    const doc=snap.data();
+    const remote=JSON.parse(doc.data);
+    if((remote._updated||0)>(DB._updated||0)){
+      applyImportedDB(remote, true);
+      setSyncStatus("⬇️ Aggiornato dal cloud — "+new Date().toLocaleString("it-IT"), true);
+      if(!silent) toast("Sincronizzato! Stesso avanzamento su questo device.");
+      return true;
+    }
+    if(!silent) toast("Già aggiornato");
+    setSyncStatus("Già allineato col cloud", true);
+    return false;
+  }catch(e){
+    setSyncStatus("Errore download: "+e.message, false);
+    if(!silent) toast("Errore cloud");
+    return false;
+  }
+}
+
+document.getElementById("btn-sync-gen").onclick=()=>{
+  document.getElementById("sync-code").value=genSyncCode();
+};
+document.getElementById("btn-sync-save-code").onclick=()=>{
+  const c=document.getElementById("sync-code").value.trim().toUpperCase();
+  if(c.length<4){ toast("Codice troppo corto"); return; }
+  localStorage.setItem(SYNC_CODE_KEY, c);
+  updateSyncUI();
+  toast("Codice sync salvato");
+  if(localStorage.getItem(SYNC_AUTO_KEY)==="1") pushCloud(true);
+};
+document.getElementById("sync-auto").onchange=(e)=>{
+  localStorage.setItem(SYNC_AUTO_KEY, e.target.checked?"1":"0");
+  updateSyncUI();
+  if(e.target.checked) pushCloud(true);
+};
+document.getElementById("btn-sync-push").onclick=()=>pushCloud(false);
+document.getElementById("btn-sync-pull").onclick=()=>pullCloud(false);
+document.getElementById("btn-fb-save").onclick=()=>{
+  const apiKey=document.getElementById("fb-apikey").value.trim();
+  const projectId=document.getElementById("fb-project").value.trim();
+  if(!apiKey||!projectId){ toast("Inserisci API Key e Project ID"); return; }
+  localStorage.setItem(FB_CFG_KEY, JSON.stringify({apiKey, projectId}));
+  fbDb=null;
+  updateSyncUI();
+  toast("Firebase configurato");
+};
+document.getElementById("btn-sync-clipboard").onclick=async()=>{
+  try{
+    const payload=JSON.stringify({...DB, _updated:DB._updated||Date.now()});
+    await navigator.clipboard.writeText(payload);
+    toast("Copiato! Incolla nella scheda Sync sull'altro dispositivo");
+  }catch(e){ toast("Copia non riuscita"); }
+};
+document.getElementById("btn-sync-paste").onclick=async()=>{
+  try{
+    const text=prompt("Incolla qui i dati copiati dall'altro dispositivo:");
+    if(!text) return;
+    applyImportedDB(JSON.parse(text), false);
+    toast("Dati incollati — stesso craft e avanzamento");
+    updateSyncUI();
+  }catch(e){ toast("Dati non validi"); }
+};
+
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible" && localStorage.getItem(SYNC_AUTO_KEY)==="1") pullCloud(true);
+});
+setInterval(()=>{
+  if(document.visibilityState==="visible" && localStorage.getItem(SYNC_AUTO_KEY)==="1") pullCloud(true);
+}, 45000);
 
 /* ripristina il craft salvato (prodotto, quantità, risultati) */
 function restoreCalc(){
@@ -838,10 +1722,17 @@ function restoreCalc(){
 
 /* ====================== AVVIO ====================== */
 load();
-resetForm();
-renderItems();
-refreshCalcSelect();
-restoreCalc();
+(async()=>{
+  if(localStorage.getItem(SYNC_AUTO_KEY)==="1" && syncCode() && getFirebaseConfig()){
+    await pullCloud(true);
+  }
+  resetForm();
+  renderItems();
+  renderScPanels();
+  refreshCalcSelect();
+  restoreCalc();
+  updateSyncUI();
+})();
 
 /* registra il service worker per il funzionamento offline (solo se servito via http/https) */
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
