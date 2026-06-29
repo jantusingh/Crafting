@@ -199,6 +199,16 @@
   .sync-status.ok{color:var(--green)}
   .sync-status.err{color:var(--danger)}
   .sync-code{font-family:ui-monospace,monospace;font-size:18px;font-weight:800;letter-spacing:3px;color:var(--gold)}
+  .storia-panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  @media (max-width:900px){ .storia-panels{grid-template-columns:1fr} }
+  .storia-fascia{margin-bottom:18px;padding:14px;background:var(--bg2);border:1px solid var(--line);border-radius:12px}
+  .storia-fascia-head{font-size:14px;font-weight:800;margin-bottom:10px;color:var(--accent);display:flex;align-items:center;gap:8px}
+  .storia-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+  .storia-row input[type=text]{flex:1}
+  .storia-row input[type=number]{flex:0 0 100px;min-width:80px}
+  .storia-sub{font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.4px}
+  .storia-total-card{border-color:rgba(57,217,138,.35)}
+  .storia-total-card h2{color:var(--green)}
 </style>
 </head>
 <body>
@@ -215,6 +225,7 @@
     <div class="tab active" data-tab="calc">🧮 Calcola</div>
     <div class="tab" data-tab="sc">🔥 Smelt / Craft</div>
     <div class="tab" data-tab="sync">☁️ Sync</div>
+    <div class="tab" data-tab="storia">📜 Storia</div>
     <div class="tab" data-tab="items">📦 Oggetti &amp; Ricette</div>
   </div>
 
@@ -329,6 +340,31 @@
     </div>
   </section>
 
+  <!-- ============ TAB STORIA ============ -->
+  <section id="tab-storia" class="hidden">
+    <div class="card">
+      <h2>📜 Storia — Progetti e sblocchi</h2>
+      <div class="sub">Ogni fascia sblocca 3 miniere (scegli il minerale T1) e upgrade (scegli oggetto T1/T2/T3 + quantità). I nomi li scrivi solo a sinistra.</div>
+    </div>
+    <div class="storia-panels">
+      <div class="card">
+        <h2>Progetti per fascia</h2>
+        <div class="sub">Una riga = un progetto. Premi + per aggiungerne altri senza limite.</div>
+        <div id="storia-progetti"></div>
+      </div>
+      <div class="card">
+        <h2>Sblocchi per fascia</h2>
+        <div class="sub">Ogni fascia sblocca 3 miniere e upgrade. Seleziona dagli oggetti già inseriti in Oggetti &amp; Ricette.</div>
+        <div id="storia-sblocchi"></div>
+      </div>
+    </div>
+    <div class="card storia-total-card">
+      <h2>🌳 Totale per sbloccare tutto l'albero</h2>
+      <div class="sub">Somma di tutte le fasce (miniere + upgrade).</div>
+      <div id="storia-totali"></div>
+    </div>
+  </section>
+
   <!-- ============ TAB OGGETTI ============ -->
   <section id="tab-items" class="hidden">
     <div class="card">
@@ -397,13 +433,238 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 <script>
 /* ====================== DATI ====================== */
-let DB = { items: [], owned: {}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]} };
+let DB = { items: [], owned: {}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}, storia:{progetti:[], sblocchi:{}} };
 // items: ricette ; owned: magazzino {id:qtà} ; calc: craft corrente ; done/open: stato spunte e tendine
 let editingId = null;
 const STORE_KEY = "crafting_calc_db_v1";
 const SYNC_CODE_KEY = "craft_sync_code";
 const SYNC_AUTO_KEY = "craft_sync_auto";
 const FB_CFG_KEY = "craft_firebase_cfg";
+const STORIA_FASCE = 17;
+
+function defaultSbloccoFascia(){
+  return {
+    miniere:[1,2,3].map(()=>({id:uid(), itemId:""})),
+    upgrades:[{id:uid(), itemId:"", qty:0}]
+  };
+}
+
+function storiaMigrateSblocco(b){
+  if(!b) return;
+  (b.miniere||[]).forEach(m=>{
+    if(!m.id) m.id=uid();
+    if(!m.itemId && m.nome){
+      const it=DB.items.find(i=>i.tier===1 && i.name===m.nome);
+      if(it) m.itemId=it.id;
+    }
+    if(!m.itemId) m.itemId="";
+    delete m.nome; delete m.qty;
+  });
+  (b.upgrades||[]).forEach(u=>{
+    if(!u.id) u.id=uid();
+    if(!u.itemId && u.nome){
+      const it=DB.items.find(i=>i.name===u.nome);
+      if(it) u.itemId=it.id;
+    }
+    if(!u.itemId) u.itemId="";
+    delete u.nome;
+    if(u.qty==null) u.qty=0;
+  });
+}
+
+function storiaItemOptions(tiers, selectedId){
+  let opts='<option value="">— scegli —</option>';
+  const list=DB.items.filter(i=>tiers.includes(i.tier)).sort((a,b)=>a.tier-b.tier||idx(a.id)-idx(b.id));
+  list.forEach(it=>{
+    const sel=it.id===selectedId?" selected":"";
+    opts+=`<option value="${it.id}"${sel}>F${it.tier} · ${escHtml(it.name)}</option>`;
+  });
+  return opts;
+}
+
+function renderStoriaTotali(){
+  const tBox=document.getElementById("storia-totali");
+  if(!tBox) return;
+  const tot=storiaTotals();
+  const ores=storiaOresUnlocked();
+  const keys=Object.keys(tot).sort((a,b)=>a.localeCompare(b,"it"));
+  if(!keys.length && !ores.length){
+    tBox.innerHTML='<div class="empty">Seleziona upgrade a destra per vedere i materiali totali. Crea prima gli oggetti in Oggetti &amp; Ricette.</div>';
+    return;
+  }
+  let html="";
+  if(ores.length){
+    html+=`<div class="storia-sub" style="margin-top:0">⛏️ Minerali sbloccati (miniere)</div>
+      <p style="font-size:14px;margin:0 0 16px;line-height:1.6">${ores.map(escHtml).join(" · ")}</p>`;
+  }
+  if(keys.length){
+    html+=`<div class="storia-sub" style="margin-top:0">📦 Materiali necessari (upgrade)</div>
+      <table><thead><tr><th>Oggetto</th><th>Fascia</th><th class="num">Quantità totale</th></tr></thead><tbody>`;
+    keys.forEach(k=>{
+      const it=getItem(k);
+      html+=`<tr><td>${escHtml(it?it.name:k)}</td><td>${it?tierBadge(it.tier):"—"}</td><td class="num"><b>${fmt(tot[k])}</b></td></tr>`;
+    });
+    html+="</tbody></table>";
+  }
+  tBox.innerHTML=html;
+}
+
+function storiaOresUnlocked(){
+  const set=new Set();
+  for(let f=1; f<=STORIA_FASCE; f++){
+    (DB.storia.sblocchi[String(f)]?.miniere||[]).forEach(m=>{
+      if(m.itemId) set.add(m.itemId);
+    });
+  }
+  return [...set].map(id=>{ const it=getItem(id); return it?it.name:id; }).sort((a,b)=>a.localeCompare(b,"it"));
+}
+
+function ensureStoriaState(){
+  if(!DB.storia) DB.storia={progetti:[], sblocchi:{}};
+  if(!Array.isArray(DB.storia.progetti)) DB.storia.progetti=[];
+  if(!DB.storia.sblocchi) DB.storia.sblocchi={};
+  for(let f=1; f<=STORIA_FASCE; f++){
+    const k=String(f);
+    if(!DB.storia.sblocchi[k]){
+      DB.storia.sblocchi[k]=defaultSbloccoFascia();
+      continue;
+    }
+    const b=DB.storia.sblocchi[k];
+    storiaMigrateSblocco(b);
+    if(!Array.isArray(b.miniere)||b.miniere.length<3){
+      const old=b.miniere||[];
+      b.miniere=[0,1,2].map(i=>old[i]||{id:uid(), itemId:""});
+      storiaMigrateSblocco(b);
+    }
+    if(!Array.isArray(b.upgrades)||!b.upgrades.length)
+      b.upgrades=[{id:uid(), itemId:"", qty:0}];
+    storiaMigrateSblocco(b);
+  }
+  if(!DB.storia.progetti.length){
+    DB.storia.progetti.push({id:uid(), fascia:1, nome:""});
+  }
+}
+
+function storiaProgettiFascia(f){
+  return DB.storia.progetti.filter(p=>p.fascia===f);
+}
+
+function storiaTotals(){
+  const tot={};
+  for(let f=1; f<=STORIA_FASCE; f++){
+    const b=DB.storia.sblocchi[String(f)];
+    if(!b) continue;
+    (b.upgrades||[]).forEach(r=>{
+      if(!r.itemId) return;
+      const q=Math.max(0, parseInt(r.qty)||0);
+      if(q>0) tot[r.itemId]=(tot[r.itemId]||0)+q;
+    });
+  }
+  return tot;
+}
+
+function renderStoria(){
+  ensureStoriaState();
+  const pBox=document.getElementById("storia-progetti");
+  const sBox=document.getElementById("storia-sblocchi");
+  const tBox=document.getElementById("storia-totali");
+  if(!pBox||!sBox) return;
+
+  let pHtml="";
+  for(let f=1; f<=STORIA_FASCE; f++){
+    const list=storiaProgettiFascia(f);
+    pHtml+=`<div class="storia-fascia">
+      <div class="storia-fascia-head">Fascia ${f}</div>
+      ${list.map(p=>`
+        <div class="storia-row">
+          <input type="text" value="${escHtml(p.nome)}" placeholder="Nome progetto"
+                 oninput="storiaSetProgetto('${p.id}',this.value)">
+          <button class="btn danger small" type="button" onclick="storiaRmProgetto('${p.id}')" title="Rimuovi">✕</button>
+        </div>`).join("")}
+      <button class="btn secondary small" type="button" onclick="storiaAddProgetto(${f})">+ Aggiungi progetto</button>
+    </div>`;
+  }
+  pBox.innerHTML=pHtml;
+
+  let sHtml="";
+  const noItems=!DB.items.length;
+  if(noItems) sHtml='<div class="empty">Crea prima gli oggetti in Oggetti &amp; Ricette (minerali T1, lingotti T2, craft T3).</div>';
+  for(let f=1; f<=STORIA_FASCE; f++){
+    const b=DB.storia.sblocchi[String(f)];
+    sHtml+=`<div class="storia-fascia">
+      <div class="storia-fascia-head">Fascia ${f} — sblocco</div>
+      <div class="storia-sub">⛏️ Miniere — minerale sbloccato (T1)</div>
+      ${b.miniere.map((m,i)=>`
+        <div class="storia-row">
+          <span class="mini-tag" style="flex:0 0 24px">M${i+1}</span>
+          <select ${noItems?"disabled":""} onchange="storiaSetReq(${f},'miniere','${m.id}','itemId',this.value)">${storiaItemOptions([1], m.itemId)}</select>
+        </div>`).join("")}
+      <div class="storia-sub">⬆️ Upgrade — materiale necessario</div>
+      ${b.upgrades.map(u=>`
+        <div class="storia-row">
+          <select style="flex:2" ${noItems?"disabled":""} onchange="storiaSetReq(${f},'upgrades','${u.id}','itemId',this.value)">${storiaItemOptions([1,2,3], u.itemId)}</select>
+          <input type="number" min="0" value="${u.qty||''}" placeholder="qtà"
+                 oninput="storiaSetReq(${f},'upgrades','${u.id}','qty',this.value)">
+          <button class="btn danger small" type="button" onclick="storiaRmUpgrade(${f},'${u.id}')" ${b.upgrades.length<=1?'disabled':''}>✕</button>
+        </div>`).join("")}
+      <button class="btn secondary small" type="button" onclick="storiaAddUpgrade(${f})" ${noItems?"disabled":""}>+ Aggiungi upgrade</button>
+    </div>`;
+  }
+  sBox.innerHTML=sHtml;
+
+  renderStoriaTotali();
+}
+
+function escHtml(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+}
+
+function storiaAddProgetto(fascia){
+  ensureStoriaState();
+  DB.storia.progetti.push({id:uid(), fascia, nome:""});
+  save(); renderStoria();
+}
+function storiaRmProgetto(id){
+  ensureStoriaState();
+  if(DB.storia.progetti.length<=1){ toast("Serve almeno una riga progetto"); return; }
+  DB.storia.progetti=DB.storia.progetti.filter(p=>p.id!==id);
+  save(); renderStoria();
+}
+function storiaSetProgetto(id, nome){
+  const p=DB.storia.progetti.find(x=>x.id===id);
+  if(p){ p.nome=nome; save(); }
+}
+function storiaSetReq(fascia, kind, rid, field, val){
+  ensureStoriaState();
+  const b=DB.storia.sblocchi[String(fascia)];
+  if(!b) return;
+  const r=(b[kind]||[]).find(x=>x.id===rid);
+  if(!r) return;
+  if(field==="qty") r.qty=Math.max(0, parseInt(val)||0);
+  else if(field==="itemId") r.itemId=val;
+  save();
+  renderStoriaTotali();
+}
+function storiaAddUpgrade(fascia){
+  ensureStoriaState();
+  DB.storia.sblocchi[String(fascia)].upgrades.push({id:uid(), itemId:"", qty:0});
+  save(); renderStoria();
+}
+function storiaRmUpgrade(fascia, rid){
+  ensureStoriaState();
+  const b=DB.storia.sblocchi[String(fascia)];
+  if(b.upgrades.length<=1) return;
+  b.upgrades=b.upgrades.filter(u=>u.id!==rid);
+  save(); renderStoria();
+}
+
+function clearStoriaRefs(id){
+  if(!DB.storia||!DB.storia.sblocchi) return;
+  Object.values(DB.storia.sblocchi).forEach(b=>{
+    (b.miniere||[]).forEach(m=>{ if(m.itemId===id) m.itemId=""; });
+    (b.upgrades||[]).forEach(u=>{ if(u.itemId===id) u.itemId=""; });
+  });
+}
 
 function uid(){ return "i" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
@@ -514,6 +775,7 @@ function load(){
   if(!DB.open) DB.open={};
   if(!DB._updated) DB._updated=0;
   ensureScState();
+  ensureStoriaState();
   doneSet=DB.done; openSet=DB.open;
 }
 let cloudPushTimer=null;
@@ -585,10 +847,12 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.getElementById("tab-calc").classList.toggle("hidden", tab!=="calc");
     document.getElementById("tab-sc").classList.toggle("hidden", tab!=="sc");
     document.getElementById("tab-sync").classList.toggle("hidden", tab!=="sync");
+    document.getElementById("tab-storia").classList.toggle("hidden", tab!=="storia");
     document.getElementById("tab-items").classList.toggle("hidden", tab!=="items");
     if(tab==="calc") refreshCalcSelect();
     if(tab==="sc") renderScPanels();
     if(tab==="sync") updateSyncUI();
+    if(tab==="storia") renderStoria();
   };
 });
 
@@ -1197,6 +1461,7 @@ function deleteItem(id){
   DB.items.forEach(i=>{ if(i.ingredients) i.ingredients=i.ingredients.filter(g=>g.id!==id); });
   if(DB.owned) delete DB.owned[id];
   clearScRefs(id);
+  clearStoriaRefs(id);
   save(); renderItems(); renderScPanels();
   if(editingId===id) resetForm();
   toast("Oggetto eliminato");
@@ -1504,9 +1769,10 @@ document.getElementById("btn-example").onclick=()=>{
   const lingOro=mk("Lingotto d'Oro",2,[{id:oro.id,qty:3}],0.5);
   const ingranaggio=mk("Ingranaggio",3,[{id:lingFerro.id,qty:4},{id:lingRame.id,qty:2}],10);
   const spada=mk("Spada d'Acciaio",3,[{id:acciaio.id,qty:3},{id:ingranaggio.id,qty:1},{id:lingOro.id,qty:1}],30);
-  DB={items:[ferro,carbone,rame,oro,lingFerro,lingRame,acciaio,lingOro,ingranaggio,spada], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}};
+  DB={items:[ferro,carbone,rame,oro,lingFerro,lingRame,acciaio,lingOro,ingranaggio,spada], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}, storia:{progetti:[], sblocchi:{}}};
   doneSet=DB.done; openSet=DB.open;
-  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels();
+  ensureStoriaState();
+  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels(); renderStoria();
   document.getElementById("calc-results").innerHTML="";
   toast("Esempio caricato — prova a calcolare la Spada d'Acciaio!");
 };
@@ -1538,9 +1804,10 @@ document.getElementById("file-input").onchange=(e)=>{
 };
 document.getElementById("btn-clear").onclick=()=>{
   if(!confirm("Eliminare TUTTI gli oggetti? Operazione irreversibile.")) return;
-  DB={items:[], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}};
+  DB={items:[], owned:{}, calc:{rootId:null,qty:1}, done:{}, open:{}, smelter:{lines:[""]}, crafter:{lines:[""]}, storia:{progetti:[], sblocchi:{}}};
   doneSet=DB.done; openSet=DB.open;
-  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels();
+  ensureStoriaState();
+  save(); renderItems(); refreshCalcSelect(); resetForm(); renderScPanels(); renderStoria();
   document.getElementById("calc-results").innerHTML="";
   toast("Tutto eliminato");
 };
@@ -1600,9 +1867,10 @@ function applyImportedDB(d, skipCloud){
   if(!DB.crafter) DB.crafter={lines:[""]};
   if(!DB._updated) DB._updated=Date.now();
   ensureScState();
+  ensureStoriaState();
   doneSet=DB.done; openSet=DB.open;
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-  renderItems(); refreshCalcSelect(); restoreCalc(); renderScPanels();
+  renderItems(); refreshCalcSelect(); restoreCalc(); renderScPanels(); renderStoria();
   if(!skipCloud) scheduleCloudPush();
 }
 
@@ -1732,6 +2000,7 @@ load();
   refreshCalcSelect();
   restoreCalc();
   updateSyncUI();
+  renderStoria();
 })();
 
 /* registra il service worker per il funzionamento offline (solo se servito via http/https) */
